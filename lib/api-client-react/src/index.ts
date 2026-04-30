@@ -240,6 +240,15 @@ export function apiDeleteInstance(
   }, token);
 }
 
+export function apiPurgeInstance(
+  token: string,
+  name: string,
+): Promise<{ success: boolean; error?: string }> {
+  return apiFetch(`/instances/${encodeURIComponent(name)}/purge`, {
+    method: 'DELETE',
+  }, token);
+}
+
 /* ── Tenants (admin) ───────────────────────────────────────────────── */
 
 export function apiListTenants(token: string): Promise<DataResponse<Tenant[]>> {
