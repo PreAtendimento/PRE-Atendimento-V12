@@ -304,7 +304,14 @@ importers:
         specifier: 'catalog:'
         version: 3.25.76
 
-  lib/api-client-react: {}
+  lib/api-client-react:
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      react:
+        specifier: 'catalog:'
+        version: 19.2.5
 
 packages:
 

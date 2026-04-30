@@ -215,7 +215,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 /* ── Auth: Verificar token (para restaurar sessão no frontend) ───────── */
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  res.json({ success: true, user: req.user });
+  const { userId: id, tenantId, role, name, email } = req.user!;
+  res.json({ success: true, user: { id, tenantId, role, name, email } });
 });
 
 /* ── Tenants ─────────────────────────────────────────────────────────── */
