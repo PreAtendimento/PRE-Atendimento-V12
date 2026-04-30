@@ -1,26 +1,24 @@
 kind = "web"
-    previewPath = "/"
-    title = "PRE-Atendimento V8"
-    version = "1.0.0"
-    id = "artifacts/main-app"
-    router = "path"
+  previewPath = "/"
+  title = "PRE-Atendimento V8"
+  version = "1.0.0"
+  id = "artifacts/main-app"
+  router = "path"
 
-    [[integratedSkills]]
-    name = "react-vite"
-    version = "1.0.0"
+  [[integratedSkills]]
+  name = "react-vite"
+  version = "1.0.0"
 
-    [[services]]
-    name = "web"
-    paths = [ "/" ]
-    localPort = 5173
+  [[services]]
+  name = "web"
+  paths = [ "/" ]
+  localPort = 5000
 
-    [services.development]
-    run = "npm run dev"
+  [services.development]
+  run = "npm run dev"
 
-    [services.production]
-    run = "cd /home/runner/workspace && npm start"
+  [services.production]
+  run = "cd /home/runner/workspace && npm start"
 
-    [services.env]
-    PORT = "5173"
-    BASE_PATH = "/"
-  
+  [services.env]
+  PORT = "5000"
