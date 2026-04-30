@@ -83,7 +83,7 @@ export default function LoginPage() {
             alt="Pré-Atendimento"
             className="h-20 mx-auto mb-2 object-contain"
           />
-          <p className="text-gray-500 text-sm">Painel WhatsApp - v8</p>
+          <p className="text-gray-500 text-sm">Painel WhatsApp - v2</p>
         </div>
 
         {/* Card branco */}
