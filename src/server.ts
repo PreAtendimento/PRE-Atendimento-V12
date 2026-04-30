@@ -737,8 +737,40 @@ app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, re
   }
 });
 
+/* ── Evolution API — configuração por tenant (admin) ─────────────────
+   PATCH /api/tenants/:id/evolution-config
+   Body: { evolutionApiUrl, evolutionGlobalApiKey }
+*/
+app.patch('/api/tenants/:id/evolution-config', requireAuth, requireAdmin, async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { evolutionApiUrl, evolutionGlobalApiKey } = req.body as {
+    evolutionApiUrl?: string;
+    evolutionGlobalApiKey?: string;
+  };
+  if (!evolutionApiUrl?.trim() && !evolutionGlobalApiKey?.trim()) {
+    res.status(400).json({ success: false, error: 'Envie ao menos evolutionApiUrl ou evolutionGlobalApiKey.' });
+    return;
+  }
+  try {
+    const update: Record<string, string> = {};
+    if (evolutionApiUrl?.trim())       update.evolution_api_url        = evolutionApiUrl.trim();
+    if (evolutionGlobalApiKey?.trim()) update.evolution_global_api_key = evolutionGlobalApiKey.trim();
+
+    const { data, error } = await supabaseAdmin
+      .from('tenants')
+      .update(update)
+      .eq('id', id)
+      .select('id, name, slug, evolution_api_url')
+      .single();
+    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Evolution API — criar instância ─────────────────────────────────
-   Usa exclusivamente EVOLUTION_API_URL + EVOLUTION_GLOBAL_API_KEY.
+   Usa credenciais configuradas pelo admin no tenant.
    Completamente isolado do EVO-GO.
 */
 app.post('/api/evo-api/instance/create', requireAuth, async (req: Request, res: Response) => {
@@ -747,8 +779,32 @@ app.post('/api/evo-api/instance/create', requireAuth, async (req: Request, res: 
     res.status(400).json({ success: false, error: 'instanceName é obrigatório.' });
     return;
   }
-  const result = await createInstanceEvolutionApi(instanceName.trim(), token?.trim());
-  res.status(result.success ? 200 : 502).json(result);
+  try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      res.status(400).json({ success: false, error: 'Tenant não identificado no token.' });
+      return;
+    }
+    const { data: tenant, error: tenantErr } = await supabaseAdmin
+      .from('tenants')
+      .select('evolution_api_url, evolution_global_api_key')
+      .eq('id', tenantId)
+      .single();
+    if (tenantErr || !tenant) {
+      res.status(404).json({ success: false, error: 'Tenant não encontrado.' });
+      return;
+    }
+    const apiUrl = (tenant as Record<string, unknown>).evolution_api_url as string | null;
+    const apiKey = (tenant as Record<string, unknown>).evolution_global_api_key as string | null;
+    if (!apiUrl || !apiKey) {
+      res.status(400).json({ success: false, error: 'Evolution API não configurada para este tenant. Contacte o administrador.' });
+      return;
+    }
+    const result = await createInstanceEvolutionApi(instanceName.trim(), apiUrl, apiKey, token?.trim());
+    res.status(result.success ? 200 : 502).json(result);
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
 });
 
 async function start() {

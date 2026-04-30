@@ -1,9 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
-const EVO_API_URL = (process.env.EVOLUTION_API_URL    || '').replace(/\/$/, '');
-const EVO_API_KEY =  process.env.EVOLUTION_GLOBAL_API_KEY || '';
-
 export interface EvoApiResponse {
   success:     boolean;
   data?:       unknown;
@@ -14,13 +8,15 @@ export interface EvoApiResponse {
 
 export async function createInstanceEvolutionApi(
   instanceName: string,
+  evolutionApiUrl:        string,
+  evolutionGlobalApiKey:  string,
   token?:       string,
 ): Promise<EvoApiResponse> {
-  const baseUrl = EVO_API_URL;
-  const apiKey  = EVO_API_KEY;
+  const baseUrl = evolutionApiUrl.replace(/\/$/, '');
+  const apiKey  = evolutionGlobalApiKey;
 
-  if (!baseUrl) return { success: false, error: 'EVOLUTION_API_URL não configurada.' };
-  if (!apiKey)  return { success: false, error: 'EVOLUTION_GLOBAL_API_KEY não configurada.' };
+  if (!baseUrl) return { success: false, error: 'EVOLUTION_API_URL não configurada para este tenant.' };
+  if (!apiKey)  return { success: false, error: 'EVOLUTION_GLOBAL_API_KEY não configurada para este tenant.' };
 
   const url = `${baseUrl}/instance/create`;
   console.log(`[Evolution API] ▶ POST ${url}`);
