@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import { useInstances, apiCreateInstance, Instance } from '@workspace/api-client-react';
 import { useAuthContext } from '@/context/AuthContext';
@@ -14,6 +14,42 @@ export default function DashboardPage() {
   const { instances, loading, error, refresh } = useInstances(token);
   const [, navigate] = useLocation();
   const [search, setSearch] = useState('');
+
+  const refreshRef = useRef(refresh);
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
+
+  useEffect(() => {
+    const INTERVAL_MS = 30_000;
+    let timerId: ReturnType<typeof setInterval> | null = null;
+
+    function start() {
+      if (timerId !== null) return;
+      timerId = setInterval(() => refreshRef.current(true), INTERVAL_MS);
+    }
+
+    function stop() {
+      if (timerId === null) return;
+      clearInterval(timerId);
+      timerId = null;
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        stop();
+      } else {
+        refreshRef.current(true);
+        start();
+      }
+    }
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -196,7 +232,7 @@ export default function DashboardPage() {
               size="sm"
               variant="outline"
               className="mt-3 border-red-700 text-red-400 hover:bg-red-900/30"
-              onClick={refresh}
+              onClick={() => refresh()}
             >
               Tentar novamente
             </Button>

@@ -372,21 +372,24 @@ export function useInstances(token: string | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (silent = false) => {
     if (!token) return;
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await apiListInstances(token);
       if (res.success && res.data) {
         setInstances(res.data);
-      } else {
+        if (!silent) setError(null);
+      } else if (!silent) {
         setError(res.error ?? 'Falha ao carregar instâncias.');
       }
     } catch {
-      setError('Erro de rede.');
+      if (!silent) setError('Erro de rede.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [token]);
 

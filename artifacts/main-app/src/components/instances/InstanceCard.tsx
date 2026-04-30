@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Instance,
   AppUser,
@@ -78,6 +78,58 @@ export default function InstanceCard({ instance, token, isAdmin, onRefresh }: Pr
       });
     }
   }, [isAdmin, token, usersLoaded]);
+
+  /* sync liveStatus whenever the parent list refresh delivers new data */
+  useEffect(() => {
+    setLiveStatus(instance.status);
+  }, [instance.status]);
+
+  /* silent background status poll — no actionLoading toggle */
+  async function pollStatus() {
+    try {
+      const res = await apiGetInstanceStatus(token, instance.instance_name);
+      if (res.success && res.dbStatus) {
+        setLiveStatus(res.dbStatus);
+      }
+    } catch {
+    }
+  }
+
+  const pollRef = useRef(pollStatus);
+  useEffect(() => { pollRef.current = pollStatus; });
+
+  useEffect(() => {
+    const INTERVAL_MS = 30_000;
+    let timerId: ReturnType<typeof setInterval> | null = null;
+
+    function start() {
+      if (timerId !== null) return;
+      timerId = setInterval(() => pollRef.current(), INTERVAL_MS);
+    }
+
+    function stop() {
+      if (timerId === null) return;
+      clearInterval(timerId);
+      timerId = null;
+    }
+
+    function handleVisibility() {
+      if (document.hidden) {
+        stop();
+      } else {
+        pollRef.current();
+        start();
+      }
+    }
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   async function checkStatus() {
     setActionLoading(true);
