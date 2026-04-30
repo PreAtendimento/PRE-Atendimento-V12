@@ -205,15 +205,6 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `,
   },
-  /* ── 010: Evolution API config por tenant ── */
-  {
-    name: '010_add_evolution_api_to_tenants',
-    sql: `
-      ALTER TABLE public.tenants
-        ADD COLUMN IF NOT EXISTS evolution_api_url        TEXT,
-        ADD COLUMN IF NOT EXISTS evolution_global_api_key TEXT;
-    `,
-  },
 ];
 
 export async function runMigrations(): Promise<void> {
