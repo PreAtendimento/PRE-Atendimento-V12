@@ -1,13 +1,35 @@
-import { useState } from 'react';
-import { Instance, apiGetInstanceStatus, apiConnectInstance, apiDisconnectInstance, apiLogoutInstance, apiDeleteInstance, apiGetQrCode } from '@workspace/api-client-react';
+import { useState, useEffect } from 'react';
+import {
+  Instance,
+  AppUser,
+  apiGetInstanceStatus,
+  apiConnectInstance,
+  apiDisconnectInstance,
+  apiLogoutInstance,
+  apiDeleteInstance,
+  apiGetQrCode,
+  apiListUsers,
+  apiAssignInstanceOwner,
+} from '@workspace/api-client-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Props {
   instance: Instance;
   token: string;
+  isAdmin?: boolean;
   onRefresh: () => void;
 }
 
@@ -31,12 +53,31 @@ function statusLabel(status: string) {
   }
 }
 
-export default function InstanceCard({ instance, token, onRefresh }: Props) {
+export default function InstanceCard({ instance, token, isAdmin, onRefresh }: Props) {
   const [qrOpen, setQrOpen] = useState(false);
   const [qrData, setQrData] = useState<string | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [liveStatus, setLiveStatus] = useState(instance.status);
+
+  /* — atribuir ao usuário — */
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string>(instance.created_by ?? '');
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignMsg, setAssignMsg] = useState('');
+  const [assignError, setAssignError] = useState('');
+
+  useEffect(() => {
+    if (isAdmin && !usersLoaded) {
+      apiListUsers(token).then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setUsers(res.data as AppUser[]);
+          setUsersLoaded(true);
+        }
+      });
+    }
+  }, [isAdmin, token, usersLoaded]);
 
   async function checkStatus() {
     setActionLoading(true);
@@ -107,11 +148,36 @@ export default function InstanceCard({ instance, token, onRefresh }: Props) {
     }
   }
 
+  async function handleAssign() {
+    setAssignLoading(true);
+    setAssignMsg('');
+    setAssignError('');
+    try {
+      const res = await apiAssignInstanceOwner(
+        token,
+        instance.instance_name,
+        selectedUserId || null,
+      );
+      if (res.success) {
+        setAssignMsg('Atribuição salva com sucesso!');
+        onRefresh();
+      } else {
+        setAssignError(res.error ?? 'Falha ao salvar atribuição.');
+      }
+    } catch {
+      setAssignError('Erro de rede.');
+    } finally {
+      setAssignLoading(false);
+    }
+  }
+
   const isConnected = liveStatus === 'connected';
 
   return (
     <>
       <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 flex flex-col gap-3">
+
+        {/* Cabeçalho */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${statusColor(liveStatus)}`} />
@@ -126,6 +192,7 @@ export default function InstanceCard({ instance, token, onRefresh }: Props) {
           Criado em {new Date(instance.created_at).toLocaleDateString('pt-BR')}
         </p>
 
+        {/* Botões de ação */}
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
@@ -229,8 +296,38 @@ export default function InstanceCard({ instance, token, onRefresh }: Props) {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+
+        {/* ── Atribuir ao Usuário (admin only) ── */}
+        {isAdmin && (
+          <div className="border-t border-slate-700 pt-3 mt-1">
+            <p className="text-xs text-purple-400 font-medium mb-2">👤 Atribuir ao Usuário</p>
+            <div className="flex gap-2 items-center">
+              <select
+                value={selectedUserId}
+                onChange={e => { setSelectedUserId(e.target.value); setAssignMsg(''); setAssignError(''); }}
+                className="flex-1 h-8 rounded-md border border-slate-600 bg-slate-700 text-white px-2 text-xs focus:outline-none focus:border-purple-500"
+              >
+                <option value="">— Sem atribuição —</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                disabled={assignLoading}
+                className="bg-purple-700 hover:bg-purple-600 text-white text-xs h-8 px-3 flex-shrink-0"
+                onClick={handleAssign}
+              >
+                {assignLoading ? '...' : 'Salvar'}
+              </Button>
+            </div>
+            {assignMsg && <p className="text-green-400 text-xs mt-1">{assignMsg}</p>}
+            {assignError && <p className="text-red-400 text-xs mt-1">{assignError}</p>}
+          </div>
+        )}
       </div>
 
+      {/* QR Code Dialog */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
         <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-sm">
           <DialogHeader>

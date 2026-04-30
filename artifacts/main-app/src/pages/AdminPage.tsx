@@ -2,10 +2,12 @@ import { useState, FormEvent } from 'react';
 import { useLocation } from 'wouter';
 import {
   apiListUsers,
+  apiCreateUser,
   apiUpdateUser,
   apiDeleteUser,
   apiListTenants,
   apiCreateTenant,
+  apiUpdateTenantEvolutionConfig,
   AppUser,
   Tenant,
 } from '@workspace/api-client-react';
@@ -47,6 +49,17 @@ function WhatsAppLogo() {
 
 function UsersTab({ token }: { token: string }) {
   const qc = useQueryClient();
+
+  /* — criar usuário — */
+  const [newName, setNewName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('user');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
+
+  /* — editar usuário — */
   const [editUser, setEditUser] = useState<AppUser | null>(null);
   const [editRole, setEditRole] = useState<string>('user');
   const [editName, setEditName] = useState<string>('');
@@ -95,6 +108,35 @@ function UsersTab({ token }: { token: string }) {
     setEditError('');
   }
 
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault();
+    setCreateError('');
+    setCreateSuccess('');
+    setCreating(true);
+    try {
+      const res = await apiCreateUser(token, {
+        name: newName.trim(),
+        email: newEmail.trim(),
+        password: newPassword,
+        role: newRole,
+      });
+      if (res.success) {
+        setCreateSuccess(`Usuário "${newName.trim()}" criado com sucesso!`);
+        setNewName('');
+        setNewEmail('');
+        setNewPassword('');
+        setNewRole('user');
+        qc.invalidateQueries({ queryKey: ['admin-users'] });
+      } else {
+        setCreateError(res.error ?? 'Falha ao criar usuário.');
+      }
+    } catch {
+      setCreateError('Erro de rede.');
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!editUser) return;
@@ -133,14 +175,92 @@ function UsersTab({ token }: { token: string }) {
   }
 
   return (
-    <div>
+    <div className="space-y-6">
+
+      {/* ── Criar Novo Usuário ── */}
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-sm">👤</div>
+          <div>
+            <div className="font-medium text-white text-sm">Novo Usuário</div>
+            <div className="text-xs text-slate-400">Crie usuários e defina o perfil de acesso</div>
+          </div>
+        </div>
+
+        <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-slate-300 text-xs">Nome completo</Label>
+            <Input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="João Silva"
+              required
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 focus:border-green-500 h-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-slate-300 text-xs">E-mail</Label>
+            <Input
+              type="email"
+              value={newEmail}
+              onChange={e => setNewEmail(e.target.value)}
+              placeholder="joao@email.com"
+              required
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 focus:border-green-500 h-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-slate-300 text-xs">Senha</Label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 focus:border-green-500 h-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-slate-300 text-xs">Perfil de acesso</Label>
+            <select
+              value={newRole}
+              onChange={e => setNewRole(e.target.value)}
+              className="w-full h-9 rounded-md border border-slate-600 bg-slate-700 text-white px-3 text-sm focus:outline-none focus:border-green-500"
+            >
+              <option value="user">Usuário</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+
+          {createError && (
+            <p className="text-red-400 text-sm sm:col-span-2">{createError}</p>
+          )}
+          {createSuccess && (
+            <p className="text-green-400 text-sm sm:col-span-2">{createSuccess}</p>
+          )}
+
+          <div className="sm:col-span-2">
+            <Button
+              type="submit"
+              disabled={creating}
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+            >
+              {creating ? 'Criando...' : '➕ Criar Usuário'}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* ── Lista de Usuários ── */}
       {actionError && (
-        <div className="mb-4 bg-red-900/30 border border-red-800 rounded-md px-4 py-2 text-red-400 text-sm flex items-center justify-between">
+        <div className="bg-red-900/30 border border-red-800 rounded-md px-4 py-2 text-red-400 text-sm flex items-center justify-between">
           <span>{actionError}</span>
           <button onClick={() => setActionError('')} className="ml-4 text-red-400 hover:text-red-200 text-lg leading-none">×</button>
         </div>
       )}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">
           {users.length} {users.length === 1 ? 'usuário' : 'usuários'}
         </p>
@@ -258,6 +378,7 @@ function UsersTab({ token }: { token: string }) {
         </table>
       </div>
 
+      {/* Modal de edição */}
       <Dialog open={!!editUser} onOpenChange={(open) => !open && setEditUser(null)}>
         <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-sm">
           <DialogHeader>
@@ -485,9 +606,162 @@ function TenantsTab({ token }: { token: string }) {
   );
 }
 
+/* ── Config Tab ────────────────────────────────────────────────────── */
+
+function ConfigTab({ token }: { token: string }) {
+  const qc = useQueryClient();
+  const [editTenant, setEditTenant] = useState<Tenant | null>(null);
+  const [cfgUrl, setCfgUrl] = useState('');
+  const [cfgKey, setCfgKey] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+  const [saveError, setSaveError] = useState('');
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['admin-tenants-cfg', token],
+    queryFn: () => apiListTenants(token),
+  });
+
+  const tenants: Tenant[] = data?.data ?? [];
+
+  function openEdit(t: Tenant) {
+    setEditTenant(t);
+    setCfgUrl('');
+    setCfgKey('');
+    setSaveMsg('');
+    setSaveError('');
+  }
+
+  async function handleSave(e: FormEvent) {
+    e.preventDefault();
+    if (!editTenant) return;
+    setSaving(true);
+    setSaveMsg('');
+    setSaveError('');
+    try {
+      const payload: { evolutionApiUrl?: string; evolutionGlobalApiKey?: string } = {};
+      if (cfgUrl.trim()) payload.evolutionApiUrl = cfgUrl.trim();
+      if (cfgKey.trim()) payload.evolutionGlobalApiKey = cfgKey.trim();
+
+      const res = await apiUpdateTenantEvolutionConfig(token, editTenant.id, payload);
+      if (res.success) {
+        setSaveMsg('✅ Configuração salva com sucesso.');
+        qc.invalidateQueries({ queryKey: ['admin-tenants-cfg'] });
+      } else {
+        setSaveError(res.error ?? 'Falha ao salvar configuração.');
+      }
+    } catch {
+      setSaveError('Erro de rede.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (isLoading) {
+    return <div className="py-12 text-center text-slate-400 text-sm">Carregando...</div>;
+  }
+
+  if (error || !data?.success) {
+    return (
+      <div className="py-12 text-center text-red-400 text-sm">
+        {data?.error ?? 'Erro ao carregar tenants.'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center text-sm">⚙️</div>
+          <div>
+            <div className="font-medium text-white text-sm">Configuração da API</div>
+            <div className="text-xs text-slate-400">Defina a URL e chave da Evolution API por tenant</div>
+          </div>
+        </div>
+
+        {tenants.length === 0 ? (
+          <p className="text-slate-500 text-sm">Nenhum tenant cadastrado.</p>
+        ) : (
+          <div className="space-y-2">
+            {tenants.map(t => (
+              <div key={t.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg px-4 py-3">
+                <div>
+                  <span className="text-white text-sm font-medium">{t.name}</span>
+                  <span className="text-slate-500 text-xs ml-2 font-mono">{t.slug}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs h-7"
+                  onClick={() => openEdit(t)}
+                >
+                  Configurar
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Dialog open={!!editTenant} onOpenChange={(open) => !open && setEditTenant(null)}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle>API — {editTenant?.name}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSave} className="space-y-4 pt-2">
+            <div className="space-y-1">
+              <Label className="text-slate-300">URL DA API</Label>
+              <Input
+                value={cfgUrl}
+                onChange={e => setCfgUrl(e.target.value)}
+                placeholder="https://evogo.pre-atendimento.com"
+                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 focus:border-green-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-slate-300">GLOBAL_API_KEY</Label>
+              <Input
+                type="password"
+                value={cfgKey}
+                onChange={e => setCfgKey(e.target.value)}
+                placeholder="Chave de acesso global da API"
+                autoComplete="off"
+                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-500 focus:border-green-500"
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              💡 Se em branco, o sistema usa as variáveis de ambiente configuradas no servidor.
+            </p>
+            {saveMsg && <p className="text-green-400 text-sm">{saveMsg}</p>}
+            {saveError && <p className="text-red-400 text-sm">{saveError}</p>}
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700"
+                onClick={() => setEditTenant(null)}
+              >
+                Fechar
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                {saving ? 'Salvando...' : '✅ Salvar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 /* ── Admin Page ────────────────────────────────────────────────────── */
 
-type Tab = 'users' | 'tenants';
+type Tab = 'users' | 'tenants' | 'config';
 
 export default function AdminPage() {
   const { user, token, logout } = useAuthContext();
@@ -542,34 +816,28 @@ export default function AdminPage() {
       <main className="max-w-6xl mx-auto px-4 py-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold">Painel Administrativo</h2>
-          <p className="text-sm text-slate-400 mt-0.5">Gerencie usuários e tenants da plataforma.</p>
+          <p className="text-sm text-slate-400 mt-0.5">Gerencie usuários, tenants e configurações da plataforma.</p>
         </div>
 
         <div className="flex gap-1 mb-6 border-b border-slate-700">
-          <button
-            onClick={() => setTab('users')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              tab === 'users'
-                ? 'border-green-500 text-green-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Usuários
-          </button>
-          <button
-            onClick={() => setTab('tenants')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              tab === 'tenants'
-                ? 'border-green-500 text-green-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Tenants
-          </button>
+          {(['users', 'tenants', 'config'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                tab === t
+                  ? 'border-green-500 text-green-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {t === 'users' ? 'Usuários' : t === 'tenants' ? 'Tenants' : 'Configuração'}
+            </button>
+          ))}
         </div>
 
         {token && tab === 'users' && <UsersTab token={token} />}
         {token && tab === 'tenants' && <TenantsTab token={token} />}
+        {token && tab === 'config' && <ConfigTab token={token} />}
       </main>
     </div>
   );

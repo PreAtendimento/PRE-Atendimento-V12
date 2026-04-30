@@ -13,6 +13,7 @@ export default function DashboardPage() {
   const { user, token, logout } = useAuthContext();
   const { instances, loading, error, refresh } = useInstances(token);
   const [, navigate] = useLocation();
+  const [search, setSearch] = useState('');
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
@@ -88,7 +89,7 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold">Instâncias WhatsApp</h2>
             <p className="text-sm text-slate-400 mt-0.5">
@@ -160,6 +161,18 @@ export default function DashboardPage() {
           </Dialog>
         </div>
 
+        {/* Pesquisa */}
+        {!loading && instances.length > 0 && (
+          <div className="mb-4">
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="🔍 Pesquisar instâncias..."
+              className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-green-500 max-w-sm"
+            />
+          </div>
+        )}
+
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map(i => (
@@ -208,18 +221,31 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {!loading && !error && instances.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {instances.map((inst: Instance) => (
-              <InstanceCard
-                key={inst.id}
-                instance={inst}
-                token={token!}
-                onRefresh={refresh}
-              />
-            ))}
-          </div>
-        )}
+        {!loading && !error && instances.length > 0 && (() => {
+          const filtered = instances.filter((i: Instance) =>
+            i.instance_name.toLowerCase().includes(search.toLowerCase())
+          );
+          return (
+            <>
+              {filtered.length === 0 && (
+                <p className="text-slate-500 text-sm text-center py-10">
+                  Nenhuma instância corresponde à pesquisa.
+                </p>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filtered.map((inst: Instance) => (
+                  <InstanceCard
+                    key={inst.id}
+                    instance={inst}
+                    token={token!}
+                    isAdmin={user?.role === 'admin'}
+                    onRefresh={refresh}
+                  />
+                ))}
+              </div>
+            </>
+          );
+        })()}
       </main>
     </div>
   );

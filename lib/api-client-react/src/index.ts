@@ -290,6 +290,28 @@ export function apiDeleteUser(
   return apiFetch(`/users/${id}`, { method: 'DELETE' }, token);
 }
 
+export function apiAssignInstanceOwner(
+  token: string,
+  instanceName: string,
+  userId: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  return apiFetch(`/instances/${instanceName}/owner`, {
+    method: 'PATCH',
+    body: JSON.stringify({ userId }),
+  }, token);
+}
+
+export function apiUpdateTenantEvolutionConfig(
+  token: string,
+  tenantId: string,
+  payload: { evolutionApiUrl?: string; evolutionGlobalApiKey?: string },
+): Promise<{ success: boolean; error?: string }> {
+  return apiFetch(`/tenants/${tenantId}/evolution-config`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }, token);
+}
+
 /* ── Config ────────────────────────────────────────────────────────── */
 
 export function apiGetConfig(): Promise<ConfigResponse> {
