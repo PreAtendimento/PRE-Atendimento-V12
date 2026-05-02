@@ -1003,6 +1003,8 @@
       opacity: 0.55;
       transition: opacity 0.18s;
     }
+    #tab-evogo.active .api-tab-logo,
+    #tab-evogo:hover .api-tab-logo,
     #tab-evolution.active .api-tab-logo,
     #tab-evolution:hover .api-tab-logo { opacity: 1; }
 
@@ -2449,7 +2451,7 @@
           <!-- Sub-tabs: escolha do provedor -->
           <div class="api-tabs">
             <button class="api-tab active" id="tab-evogo"
-              onclick="switchCreateTab('evogo')">⚡ Evo-Go</button>
+              onclick="switchCreateTab('evogo')"><img src="/evogo-logo.png" class="api-tab-logo" alt="Evo-Go"></button>
             <button class="api-tab" id="tab-evolution"
               onclick="switchCreateTab('evolution')"><img src="/evolution-api-logo.png" class="api-tab-logo" alt="Evolution-API"></button>
           </div>
