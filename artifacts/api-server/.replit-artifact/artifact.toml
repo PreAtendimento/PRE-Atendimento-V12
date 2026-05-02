@@ -1,10 +1,24 @@
-schema_version = 1
-id = "artifacts/api-server"
 kind = "web"
-title = "PRE-Atendimento V8"
+    previewPath = "/"
+    title = "PRE-Atendimento V8"
+    version = "1.0.0"
+    id = "artifacts/api-server"
+    router = "path"
 
-[[services]]
-name = "web"
-port = 5000
-previewPath = "/"
-devCommand = "npm run dev"
+    [[integratedSkills]]
+    name = "react-vite"
+    version = "1.0.0"
+
+    [[services]]
+    name = "web"
+    paths = [ "/" ]
+    localPort = 3001
+
+    [services.development]
+    run = "npm run dev"
+
+    [services.production]
+    run = "npm start"
+
+    [services.env]
+    PORT = "3001"

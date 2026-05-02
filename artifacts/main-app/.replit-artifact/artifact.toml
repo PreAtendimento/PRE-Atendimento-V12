@@ -1,6 +1,6 @@
 kind = "web"
-    previewPath = "/"
-    title = "PRE-Atendimento V8"
+    previewPath = "/main-app/"
+    title = "PRE-Atendimento V8 (alt)"
     version = "1.0.0"
     id = "artifacts/main-app"
     router = "path"
@@ -11,7 +11,7 @@ kind = "web"
 
     [[services]]
     name = "web"
-    paths = [ "/" ]
+    paths = [ "/main-app/" ]
     localPort = 5000
 
     [services.development]
@@ -22,4 +22,3 @@ kind = "web"
 
     [services.env]
     PORT = "5000"
-  
