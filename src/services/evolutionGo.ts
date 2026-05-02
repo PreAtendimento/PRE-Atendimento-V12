@@ -227,7 +227,7 @@ export async function pairInstance(
 }
 
 /* ── 9. Foto de perfil da instância ─────────────────────────────────
-   Swagger: GET /instance/profile/picture
+   Swagger: GET /user/profilePicture
    Header:  apikey: <token da instância>
    Resposta esperada: { data: { picture, profilePictureUrl } } ou variante
 */
@@ -238,7 +238,7 @@ export async function getProfilePicture(
   if (!instanceToken) {
     return { success: false, error: 'Token não fornecido.' };
   }
-  return callApi('GET', '/instance/profile/picture', undefined, overrideUrl, instanceToken);
+  return callApi('GET', '/user/profilePicture', undefined, overrideUrl, instanceToken);
 }
 
 /* ── 10. Deletar instância ───────────────────────────────────────────
