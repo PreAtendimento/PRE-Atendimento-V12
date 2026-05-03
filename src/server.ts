@@ -866,7 +866,7 @@ async function start() {
 
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
-    console.log(`📦 Supabase: ${process.env.SUPABASE_DB_URL ? '✅ configurado' : '⚠️  não configurado'}`);
+    console.log(`📦 Supabase: ${process.env.SUPABASE_URL ? '✅ configurado' : '⚠️  não configurado'}`);
   });
 }
 

@@ -30,3 +30,11 @@ VITE_API_URL = "/api"
 [nix]
 packages = []
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 3001
+externalPort = 80
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
