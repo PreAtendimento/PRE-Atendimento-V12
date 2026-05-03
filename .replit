@@ -42,6 +42,7 @@ expertMode = true
 VITE_API_URL = ""
 PORT = "5000"
 EVOLUTION_API_URL = "https://evogo.pre-atendimento.com"
+PUBLIC_APP_URL = "https://a21229b7-bdee-49a7-97b5-1f1dc731bdd1-00-3l1d9vpeiuni5.riker.replit.dev"
 
 [userenv.development]
 VITE_API_URL = "/api"
