@@ -24,13 +24,13 @@ args = "Start application"
 name = "Start application"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm run dev"
-waitForPort = 3001
-
-[workflows.workflow.metadata]
-outputType = "webview"
+waitForPort = 5000
 
 [agent]
 stack = "PNPM_WORKSPACE"
