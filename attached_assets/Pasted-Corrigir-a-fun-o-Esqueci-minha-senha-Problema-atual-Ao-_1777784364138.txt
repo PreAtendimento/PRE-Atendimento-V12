@@ -1,0 +1,99 @@
+Corrigir a função "Esqueci minha senha".
+
+Problema atual:
+Ao solicitar recuperação, o frontend mostra:
+"Se este e-mail estiver cadastrado, você receberá o link em instantes. Verifique também a pasta de spam."
+Mas o Supabase não está enviando o e-mail.
+
+Objetivo:
+Fazer o fluxo real de reset de senha usando Supabase Auth.
+
+Regras:
+- Não mudar layout.
+- Não remover funções existentes.
+- Não criar sistema próprio de e-mail.
+- Usar Supabase Auth resetPasswordForEmail.
+- Backend deve fazer a chamada com segurança.
+- Frontend apenas chama o endpoint e exibe a mensagem genérica.
+- Não revelar se o e-mail existe ou não.
+
+Implementar:
+
+1. Backend
+Criar ou corrigir endpoint:
+
+POST /api/auth/forgot-password
+
+Body:
+{
+  "email": "usuario@email.com"
+}
+
+Lógica:
+- Validar e-mail obrigatório.
+- Chamar Supabase Auth:
+
+supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: `${APP_URL}/reset-password.html`
+})
+
+ou, se o projeto usar domínio público:
+
+redirectTo: `${PUBLIC_APP_URL}/reset-password.html`
+
+- APP_URL / PUBLIC_APP_URL deve vir de variável de ambiente.
+- Não usar localhost em produção.
+- Mesmo se Supabase retornar erro por usuário não encontrado, responder mensagem genérica.
+
+Resposta sempre:
+{
+  "success": true,
+  "message": "Se este e-mail estiver cadastrado, você receberá o link em instantes. Verifique também a pasta de spam."
+}
+
+2. Variáveis necessárias
+Adicionar/verificar no projeto:
+
+SUPABASE_URL
+SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
+PUBLIC_APP_URL
+
+PUBLIC_APP_URL deve apontar para o domínio real do app no Replit/deploy.
+
+3. Frontend
+No formulário "Esqueci minha senha":
+- Garantir que ele chame:
+POST /api/auth/forgot-password
+- Enviar:
+{ email }
+- Mostrar a mensagem genérica retornada.
+- Não simular sucesso sem chamar backend.
+
+4. Página reset-password.html
+Verificar/criar fluxo para receber usuário vindo do link do Supabase.
+Ela deve permitir digitar nova senha e chamar:
+
+supabase.auth.updateUser({
+  password: newPassword
+})
+
+Após sucesso:
+- mostrar "Senha alterada com sucesso."
+- redirecionar para login.
+
+5. Supabase Dashboard
+Garantir compatibilidade com Supabase Auth:
+- Authentication > URL Configuration
+- Site URL = PUBLIC_APP_URL
+- Redirect URLs incluir:
+  PUBLIC_APP_URL/reset-password.html
+
+6. Não alterar:
+- login existente
+- cadastro existente
+- dashboard
+- monitor
+- Evolution API
+- controle de instâncias
+- layout visual

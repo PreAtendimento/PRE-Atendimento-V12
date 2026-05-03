@@ -1,6 +1,6 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
-import { supabaseAdmin } from './supabase.js';
+import { supabaseAdmin, supabaseClient } from './supabase.js';
 
 interface UserRow {
   id: string;
@@ -129,7 +129,7 @@ export async function requestPasswordReset(
 ): Promise<{ success: boolean; error?: string }> {
   const normalizedEmail = email.toLowerCase().trim();
 
-  /* Verificar se o email existe na nossa tabela de usuários */
+  /* 1. Verificar se o e-mail existe na nossa tabela de usuários */
   const client = getClient();
   try {
     await client.connect();
@@ -137,36 +137,48 @@ export async function requestPasswordReset(
       'SELECT id FROM public.users WHERE email = $1 LIMIT 1',
       [normalizedEmail],
     );
-    /* Não revelar se o email existe — retornar sucesso genérico */
-    if (!rows.length) return { success: true };
+    /* Não revelar se o e-mail existe — retornar sucesso genérico */
+    if (!rows.length) {
+      console.log(`[auth] requestPasswordReset: e-mail não encontrado em public.users — resposta genérica`);
+      return { success: true };
+    }
   } finally {
     await client.end();
   }
 
-  /* Tentar gerar link de recuperação via Supabase Auth */
-  const generateOpts = {
+  /* 2. Garantir que o usuário existe em auth.users (necessário para resetPasswordForEmail) */
+  const { error: genError } = await supabaseAdmin.auth.admin.generateLink({
     type: 'recovery' as const,
     email: normalizedEmail,
     options: { redirectTo },
-  };
+  });
 
-  let result = await supabaseAdmin.auth.admin.generateLink(generateOpts);
-
-  /* Se o usuário não existe em auth.users, criar e tentar novamente */
-  if (result.error) {
-    const tmpPassword = `reset-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    await supabaseAdmin.auth.admin.createUser({
+  if (genError) {
+    /* Usuário não existe em auth.users — criar com senha temporária */
+    console.log(`[auth] requestPasswordReset: criando usuário em auth.users para "${normalizedEmail}"`);
+    const tmpPassword = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       email_confirm: true,
       password: tmpPassword,
     });
-    result = await supabaseAdmin.auth.admin.generateLink(generateOpts);
+    if (createErr) {
+      console.error(`[auth] requestPasswordReset: falha ao criar em auth.users: ${createErr.message}`);
+      return { success: true }; /* resposta genérica — não expor o erro */
+    }
   }
 
-  if (result.error) {
-    return { success: false, error: 'Erro ao enviar e-mail. Verifique as configurações do Supabase.' };
+  /* 3. Disparar e-mail de recuperação via Supabase (resetPasswordForEmail envia o e-mail de fato) */
+  console.log(`[auth] requestPasswordReset: chamando resetPasswordForEmail → redirectTo="${redirectTo}"`);
+  const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+
+  if (resetErr) {
+    console.error(`[auth] requestPasswordReset: resetPasswordForEmail error: ${resetErr.message}`);
+    /* Retornar sucesso genérico mesmo em erro — não revelar detalhes */
+    return { success: true };
   }
 
+  console.log(`[auth] requestPasswordReset: e-mail enviado com sucesso para "${normalizedEmail}"`);
   return { success: true };
 }
 

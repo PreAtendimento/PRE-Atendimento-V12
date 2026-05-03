@@ -199,14 +199,26 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     return;
   }
   try {
-    const protocol = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
-    const host     = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:5000';
-    const redirectTo = `${protocol}://${host}/reset-password.html`;
+    const publicUrl  = process.env.PUBLIC_APP_URL?.replace(/\/$/, '') || (() => {
+      const protocol = (req.headers['x-forwarded-proto'] as string)?.split(',')[0].trim() || req.protocol || 'https';
+      const host     = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'localhost:5000';
+      return `${protocol}://${host}`;
+    })();
+    const redirectTo = `${publicUrl}/reset-password.html`;
+    console.log(`[auth] forgot-password → email="${email}" redirectTo="${redirectTo}"`);
     const result = await requestPasswordReset(email, redirectTo);
-    /* Sempre retornar 200 para não revelar se o e-mail existe */
-    res.json({ success: result.success, error: result.error });
+    console.log(`[auth] forgot-password → result: success=${result.success}${result.error ? ' error=' + result.error : ''}`);
+    /* Sempre retornar 200 + mensagem genérica para não revelar se o e-mail existe */
+    res.json({
+      success: true,
+      message: 'Se este e-mail estiver cadastrado, você receberá o link em instantes. Verifique também a pasta de spam.',
+    });
   } catch (err: unknown) {
-    res.status(500).json({ success: false, error: (err as Error).message });
+    console.error('[auth] forgot-password exception:', (err as Error).message);
+    res.json({
+      success: true,
+      message: 'Se este e-mail estiver cadastrado, você receberá o link em instantes. Verifique também a pasta de spam.',
+    });
   }
 });
 
