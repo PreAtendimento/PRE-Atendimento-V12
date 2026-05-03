@@ -3202,11 +3202,20 @@
 
     const INST_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 
+    let _tokenManuallyEdited = false;
+    document.getElementById('inst-token').addEventListener('input', () => {
+      _tokenManuallyEdited = true;
+    });
+
     function onInstFieldInput() {
       const val   = document.getElementById('instanceName').value.trim();
       const valid = !!val && INST_NAME_RE.test(val);
       document.getElementById('dot-name').className = 'field-dot ' + (valid ? 'ok' : (val ? 'nok' : ''));
       document.getElementById('btn-instance').disabled = !valid;
+      /* Auto-espelha o nome no campo Token enquanto o usuário não editá-lo manualmente */
+      if (!_tokenManuallyEdited) {
+        document.getElementById('inst-token').value = val;
+      }
     }
 
     document.getElementById('instanceName').addEventListener('input', onInstFieldInput);
@@ -3336,6 +3345,8 @@
           tb.classList.add('visible');
           tb.querySelector('.token-block-title').textContent = '✅ Instância criada e conectada';
           document.getElementById('instanceName').value = '';
+          document.getElementById('inst-token').value   = '';
+          _tokenManuallyEdited = false;
           onInstFieldInput();
           tb.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
