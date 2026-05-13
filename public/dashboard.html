@@ -2434,6 +2434,10 @@
         onclick="showPanel('panel-monitor', null, 'bnav-monitor', 'snav-monitor')">
         Monitor
       </button>
+      <button class="sidebar-nav-item" id="snav-catalog"
+        onclick="showPanel('panel-catalog', null, 'bnav-catalog', 'snav-catalog')">
+        Catálogo
+      </button>
       <button class="sidebar-nav-item admin-only" id="snav-users"
         onclick="showPanel('panel-users', null, 'bnav-users', 'snav-users')">
         Usuários
@@ -2493,6 +2497,10 @@
       <button class="drawer-nav-item" id="dnav-monitor"
         onclick="showPanel('panel-monitor', null, 'bnav-monitor', 'snav-monitor'); closeDrawer()">
         Monitor
+      </button>
+      <button class="drawer-nav-item" id="dnav-catalog"
+        onclick="showPanel('panel-catalog', null, 'bnav-catalog', 'snav-catalog'); closeDrawer()">
+        Catálogo
       </button>
       <button class="drawer-nav-item admin-only" id="dnav-users"
         onclick="showPanel('panel-users', null, 'bnav-users', 'snav-users'); closeDrawer()">
@@ -2900,6 +2908,85 @@
         </div>
       </div>
 
+      <!-- ── CATÁLOGO ── -->
+      <div class="panel" id="panel-catalog">
+
+        <!-- Coleções -->
+        <div class="card" style="margin-bottom:1.25rem">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Coleções</div>
+              <div class="card-desc">Agrupe seus itens por categoria</div>
+            </div>
+            <button class="btn" id="btn-toggle-add-collection"
+              style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 3px 10px rgba(16,185,129,0.25)"
+              onclick="toggleAddCollectionForm()">+ Adicionar Coleção</button>
+          </div>
+
+          <div id="add-collection-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
+            <label for="col-name">Nome da Coleção</label>
+            <div class="field-wrap" style="margin-bottom:0.75rem">
+              <input type="text" id="col-name" placeholder="Ex: Lanches, Bebidas, Combos…" autocomplete="off" />
+            </div>
+            <label for="col-desc">Descrição <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+            <div class="field-wrap" style="margin-bottom:0.9rem">
+              <input type="text" id="col-desc" placeholder="Breve descrição da coleção" autocomplete="off" />
+            </div>
+            <div style="display:flex;gap:0.6rem">
+              <button class="btn" onclick="saveCollection()" style="flex:1;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 3px 10px rgba(16,185,129,0.25)">✅ Salvar</button>
+              <button class="btn" onclick="toggleAddCollectionForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
+            </div>
+          </div>
+
+          <div id="collections-list">
+            <div class="empty-state"><div class="empty-icon">🔄</div>Carregando coleções…</div>
+          </div>
+        </div>
+
+        <!-- Itens -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Itens</div>
+              <div class="card-desc">Produtos ou serviços do seu catálogo</div>
+            </div>
+            <button class="btn" id="btn-toggle-add-item"
+              style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)"
+              onclick="toggleAddItemForm()">+ Adicionar Item</button>
+          </div>
+
+          <div id="add-item-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
+            <label for="item-name">Nome do Item</label>
+            <div class="field-wrap" style="margin-bottom:0.75rem">
+              <input type="text" id="item-name" placeholder="Ex: X-Burguer, Coca-Cola…" autocomplete="off" />
+            </div>
+            <label for="item-desc">Descrição <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+            <div class="field-wrap" style="margin-bottom:0.75rem">
+              <input type="text" id="item-desc" placeholder="Descreva o item" autocomplete="off" />
+            </div>
+            <label for="item-price">Preço <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+            <div class="field-wrap" style="margin-bottom:0.75rem">
+              <input type="number" id="item-price" placeholder="0.00" min="0" step="0.01" autocomplete="off" />
+            </div>
+            <label for="item-collection">Coleção <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+            <div class="field-wrap" style="margin-bottom:0.9rem">
+              <select id="item-collection" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
+                <option value="">— Sem coleção —</option>
+              </select>
+            </div>
+            <div style="display:flex;gap:0.6rem">
+              <button class="btn" onclick="saveItem()" style="flex:1;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)">✅ Salvar</button>
+              <button class="btn" onclick="toggleAddItemForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
+            </div>
+          </div>
+
+          <div id="items-list">
+            <div class="empty-state"><div class="empty-icon">🔄</div>Carregando itens…</div>
+          </div>
+        </div>
+
+      </div><!-- /#panel-catalog -->
+
     </div><!-- /.main -->
 
     <!-- BOTTOM NAV (mobile only) -->
@@ -2915,6 +3002,10 @@
       <div class="bottom-nav-item" id="bnav-monitor"
         onclick="showPanel('panel-monitor', null, 'bnav-monitor')">
         <span class="bottom-nav-icon">📡</span>Monitor
+      </div>
+      <div class="bottom-nav-item" id="bnav-catalog"
+        onclick="showPanel('panel-catalog', null, 'bnav-catalog')">
+        <span class="bottom-nav-icon">🛍️</span>Catálogo
       </div>
       <div class="bottom-nav-item admin-only" id="bnav-users"
         onclick="showPanel('panel-users', null, 'bnav-users')">
@@ -3083,9 +3174,9 @@
     }
 
     /* ─── NAV ─── */
-    const panelToSnav = { 'panel-create':'snav-create','panel-list':'snav-list','panel-monitor':'snav-monitor','panel-users':'snav-users','panel-config':'snav-config' };
-    const panelToDnav = { 'panel-create':'dnav-create','panel-list':'dnav-list','panel-monitor':'dnav-monitor','panel-users':'dnav-users','panel-config':'dnav-config' };
-    const panelToBnav = { 'panel-create':'bnav-create','panel-list':'bnav-list','panel-monitor':'bnav-monitor','panel-users':'bnav-users','panel-config':'bnav-config' };
+    const panelToSnav = { 'panel-create':'snav-create','panel-list':'snav-list','panel-monitor':'snav-monitor','panel-catalog':'snav-catalog','panel-users':'snav-users','panel-config':'snav-config' };
+    const panelToDnav = { 'panel-create':'dnav-create','panel-list':'dnav-list','panel-monitor':'dnav-monitor','panel-catalog':'dnav-catalog','panel-users':'dnav-users','panel-config':'dnav-config' };
+    const panelToBnav = { 'panel-create':'bnav-create','panel-list':'bnav-list','panel-monitor':'bnav-monitor','panel-catalog':'bnav-catalog','panel-users':'bnav-users','panel-config':'bnav-config' };
 
     function showPanel(panelId, tabEl, bnavId, snavId) {
       /* Panels */
@@ -3114,6 +3205,8 @@
       else _stopMonitorPoll();
 
       if (panelId === 'panel-config') loadEvolutionConfig();
+
+      if (panelId === 'panel-catalog') { loadCollections(); loadItems(); }
     }
 
     /* ─── CONFIG ADMIN ─── */
@@ -4709,6 +4802,171 @@
         }
       }
     });
+
+    /* ─── CATÁLOGO ─── */
+    function toggleAddCollectionForm() {
+      const f = document.getElementById('add-collection-form');
+      const visible = f.style.display !== 'none';
+      f.style.display = visible ? 'none' : 'block';
+      if (!visible) document.getElementById('col-name').focus();
+    }
+
+    function toggleAddItemForm() {
+      const f = document.getElementById('add-item-form');
+      const visible = f.style.display !== 'none';
+      f.style.display = visible ? 'none' : 'block';
+      if (!visible) { populateCollectionSelect(); document.getElementById('item-name').focus(); }
+    }
+
+    let _catalogCollections = [];
+
+    async function loadCollections() {
+      const el = document.getElementById('collections-list');
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔄</div>Carregando…</div>';
+      try {
+        const res  = await fetch('/api/catalog/collections', { headers: getAuthHeaders() });
+        const json = await res.json();
+        _catalogCollections = json.data || [];
+        if (!_catalogCollections.length) {
+          el.innerHTML = '<div class="empty-state"><div class="empty-icon">📂</div>Nenhuma coleção criada ainda.</div>';
+          return;
+        }
+        el.innerHTML = _catalogCollections.map(c => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 0;border-bottom:1px solid var(--border2)">
+            <div>
+              <div style="font-weight:700;color:var(--tx1);font-size:0.9rem">${escHtml(c.name)}</div>
+              ${c.description ? `<div style="font-size:0.78rem;color:var(--tx3);margin-top:2px">${escHtml(c.description)}</div>` : ''}
+            </div>
+            <button onclick="deleteCollection('${c.id}','${escHtml(c.name).replace(/'/g,"\\'")}') "
+              style="background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;transition:all 0.15s"
+              onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
+              🗑 Excluir
+            </button>
+          </div>`).join('');
+      } catch (e) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div>Erro ao carregar coleções.</div>`;
+      }
+    }
+
+    async function loadItems() {
+      const el = document.getElementById('items-list');
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">🔄</div>Carregando…</div>';
+      try {
+        const res  = await fetch('/api/catalog/items', { headers: getAuthHeaders() });
+        const json = await res.json();
+        const items = json.data || [];
+        if (!items.length) {
+          el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛍️</div>Nenhum item cadastrado ainda.</div>';
+          return;
+        }
+        el.innerHTML = items.map(it => {
+          const colName = it.catalog_collections?.name || '';
+          const price   = it.price != null ? `R$ ${parseFloat(it.price).toFixed(2).replace('.',',')}` : '';
+          return `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0.7rem 0;border-bottom:1px solid var(--border2)">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;color:var(--tx1);font-size:0.9rem">${escHtml(it.name)}${price ? ` <span style="color:#25D366;font-size:0.82rem">${price}</span>` : ''}</div>
+              ${it.description ? `<div style="font-size:0.78rem;color:var(--tx3);margin-top:2px">${escHtml(it.description)}</div>` : ''}
+              ${colName ? `<div style="font-size:0.75rem;color:var(--tx4);margin-top:2px">📂 ${escHtml(colName)}</div>` : ''}
+            </div>
+            <button onclick="deleteItem('${it.id}','${escHtml(it.name).replace(/'/g,"\\'")}') "
+              style="background:transparent;border:1px solid rgba(239,68,68,0.4);color:#f87171;border-radius:0.45rem;padding:0.3rem 0.65rem;font-size:0.75rem;cursor:pointer;margin-left:0.75rem;flex-shrink:0;transition:all 0.15s"
+              onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='transparent'">
+              🗑 Excluir
+            </button>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        el.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div>Erro ao carregar itens.</div>`;
+      }
+    }
+
+    function populateCollectionSelect() {
+      const sel = document.getElementById('item-collection');
+      sel.innerHTML = '<option value="">— Sem coleção —</option>' +
+        _catalogCollections.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+    }
+
+    async function saveCollection() {
+      const name = document.getElementById('col-name').value.trim();
+      const desc = document.getElementById('col-desc').value.trim();
+      if (!name) { showToast('❌ Nome da coleção é obrigatório.', 'err'); return; }
+      try {
+        const res  = await fetch('/api/catalog/collections', {
+          method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description: desc || null }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Coleção criada com sucesso.', 'ok');
+          document.getElementById('col-name').value = '';
+          document.getElementById('col-desc').value = '';
+          toggleAddCollectionForm();
+          loadCollections();
+        } else {
+          showToast(`❌ ${json.error || 'Falha ao criar coleção.'}`, 'err');
+        }
+      } catch { showToast('❌ Erro ao criar coleção.', 'err'); }
+    }
+
+    async function saveItem() {
+      const name         = document.getElementById('item-name').value.trim();
+      const desc         = document.getElementById('item-desc').value.trim();
+      const priceRaw     = document.getElementById('item-price').value.trim();
+      const collectionId = document.getElementById('item-collection').value;
+      if (!name) { showToast('❌ Nome do item é obrigatório.', 'err'); return; }
+      const price = priceRaw !== '' ? parseFloat(priceRaw) : null;
+      try {
+        const res  = await fetch('/api/catalog/items', {
+          method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description: desc || null, price, collection_id: collectionId || null }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast('✅ Item criado com sucesso.', 'ok');
+          document.getElementById('item-name').value  = '';
+          document.getElementById('item-desc').value  = '';
+          document.getElementById('item-price').value = '';
+          document.getElementById('item-collection').value = '';
+          toggleAddItemForm();
+          loadItems();
+        } else {
+          showToast(`❌ ${json.error || 'Falha ao criar item.'}`, 'err');
+        }
+      } catch { showToast('❌ Erro ao criar item.', 'err'); }
+    }
+
+    async function deleteCollection(id, name) {
+      openModal({
+        icon: '🗑️', title: 'Excluir Coleção',
+        desc: `A coleção "${name}" será removida. Os itens vinculados a ela ficarão sem coleção.`,
+        instanceName: name, btnClass: 'danger-delete', btnLabel: 'Excluir',
+        onConfirm: async () => {
+          const res  = await fetch(`/api/catalog/collections/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+          const json = await res.json();
+          if (json.success) { showToast('✅ Coleção excluída.', 'ok'); loadCollections(); loadItems(); }
+          else showToast(`❌ ${json.error || 'Falha.'}`, 'err');
+        },
+      });
+    }
+
+    async function deleteItem(id, name) {
+      openModal({
+        icon: '🗑️', title: 'Excluir Item',
+        desc: `O item "${name}" será removido permanentemente.`,
+        instanceName: name, btnClass: 'danger-delete', btnLabel: 'Excluir',
+        onConfirm: async () => {
+          const res  = await fetch(`/api/catalog/items/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+          const json = await res.json();
+          if (json.success) { showToast('✅ Item excluído.', 'ok'); loadItems(); }
+          else showToast(`❌ ${json.error || 'Falha.'}`, 'err');
+        },
+      });
+    }
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
 
     /* ─── INIT ─── */
     initTheme();

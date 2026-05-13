@@ -1041,6 +1041,129 @@ app.post('/api/admin/config/evolution', requireAuth, requireAdmin, async (req, r
   }
 });
 
+/* ══════════════════════════════════════════════════════════════════
+   CATÁLOGO — Coleções e Itens (isolado por tenant + created_by)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Listar Coleções ────────────────────────────────────────────── */
+app.get('/api/catalog/collections', requireAuth, async (req, res) => {
+  const user    = req.user!;
+  const isAdmin = user.role === 'admin';
+  try {
+    let q = supabaseAdmin
+      .from('catalog_collections')
+      .select('id, name, description, created_at')
+      .order('created_at', { ascending: true });
+    if (!isAdmin) {
+      if (user.tenantId) q = q.eq('tenant_id', user.tenantId);
+      q = q.eq('created_by', user.userId);
+    }
+    const { data, error } = await q;
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Criar Coleção ──────────────────────────────────────────────── */
+app.post('/api/catalog/collections', requireAuth, async (req, res) => {
+  const { name, description } = req.body as { name?: string; description?: string };
+  if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
+  const user = req.user!;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('catalog_collections')
+      .insert({ name: name.trim(), description: description?.trim() || null, tenant_id: user.tenantId || null, created_by: user.userId })
+      .select('id, name, description, created_at')
+      .single();
+    if (error) { res.status(409).json({ success: false, error: error.message }); return; }
+    res.status(201).json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Excluir Coleção ────────────────────────────────────────────── */
+app.delete('/api/catalog/collections/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const user    = req.user!;
+  const isAdmin = user.role === 'admin';
+  try {
+    let q = supabaseAdmin.from('catalog_collections').delete().eq('id', id);
+    if (!isAdmin) q = q.eq('created_by', user.userId);
+    const { error } = await q;
+    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
+    res.json({ success: true });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Listar Itens ───────────────────────────────────────────────── */
+app.get('/api/catalog/items', requireAuth, async (req, res) => {
+  const user    = req.user!;
+  const isAdmin = user.role === 'admin';
+  try {
+    let q = supabaseAdmin
+      .from('catalog_items')
+      .select('id, name, description, price, collection_id, created_at, catalog_collections(name)')
+      .order('created_at', { ascending: true });
+    if (!isAdmin) {
+      if (user.tenantId) q = q.eq('tenant_id', user.tenantId);
+      q = q.eq('created_by', user.userId);
+    }
+    const { data, error } = await q;
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    res.json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Criar Item ─────────────────────────────────────────────────── */
+app.post('/api/catalog/items', requireAuth, async (req, res) => {
+  const { name, description, price, collection_id } = req.body as {
+    name?: string; description?: string; price?: number | null; collection_id?: string | null;
+  };
+  if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
+  const user = req.user!;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('catalog_items')
+      .insert({
+        name: name.trim(),
+        description: description?.trim() || null,
+        price: price ?? null,
+        collection_id: collection_id || null,
+        tenant_id: user.tenantId || null,
+        created_by: user.userId,
+      })
+      .select('id, name, description, price, collection_id, created_at')
+      .single();
+    if (error) { res.status(409).json({ success: false, error: error.message }); return; }
+    res.status(201).json({ success: true, data });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Excluir Item ───────────────────────────────────────────────── */
+app.delete('/api/catalog/items/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const user    = req.user!;
+  const isAdmin = user.role === 'admin';
+  try {
+    let q = supabaseAdmin.from('catalog_items').delete().eq('id', id);
+    if (!isAdmin) q = q.eq('created_by', user.userId);
+    const { error } = await q;
+    if (error) { res.status(404).json({ success: false, error: error.message }); return; }
+    res.json({ success: true });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 async function start() {
   try {
     await runMigrations();

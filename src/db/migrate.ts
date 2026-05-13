@@ -242,6 +242,54 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `,
   },
+  /* ── 013: catálogo — coleções ── */
+  {
+    name: '013_create_catalog_collections',
+    sql: `
+      CREATE TABLE IF NOT EXISTS public.catalog_collections (
+        id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name        TEXT NOT NULL,
+        description TEXT,
+        tenant_id   UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
+        created_by  UUID REFERENCES public.users(id)   ON DELETE SET NULL,
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_catalog_collections_tenant ON public.catalog_collections (tenant_id);
+      CREATE INDEX IF NOT EXISTS idx_catalog_collections_created_by ON public.catalog_collections (created_by);
+
+      ALTER TABLE public.catalog_collections ENABLE ROW LEVEL SECURITY;
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_catalog_collections" ON public.catalog_collections
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `,
+  },
+  /* ── 014: catálogo — itens ── */
+  {
+    name: '014_create_catalog_items',
+    sql: `
+      CREATE TABLE IF NOT EXISTS public.catalog_items (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name          TEXT NOT NULL,
+        description   TEXT,
+        price         NUMERIC(10,2),
+        collection_id UUID REFERENCES public.catalog_collections(id) ON DELETE SET NULL,
+        tenant_id     UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
+        created_by    UUID REFERENCES public.users(id)   ON DELETE SET NULL,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_catalog_items_tenant ON public.catalog_items (tenant_id);
+      CREATE INDEX IF NOT EXISTS idx_catalog_items_collection ON public.catalog_items (collection_id);
+
+      ALTER TABLE public.catalog_items ENABLE ROW LEVEL SECURITY;
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_catalog_items" ON public.catalog_items
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `,
+  },
 ];
 
 export async function runMigrations(): Promise<void> {
