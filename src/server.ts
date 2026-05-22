@@ -1183,7 +1183,7 @@ app.delete('/api/catalog/items/:id', requireAuth, async (req, res) => {
    ══════════════════════════════════════════════════════════════════ */
 
 /* ── Ler configuração Meta ──────────────────────────────────────── */
-app.get('/api/meta-config', requireAuth, async (req, res) => {
+app.get('/api/meta-config', requireAuth, requireAdmin, async (req, res) => {
   const user = req.user!;
   try {
     let q = supabaseAdmin
@@ -1206,7 +1206,7 @@ app.get('/api/meta-config', requireAuth, async (req, res) => {
 });
 
 /* ── Salvar configuração Meta ───────────────────────────────────── */
-app.post('/api/meta-config', requireAuth, async (req, res) => {
+app.post('/api/meta-config', requireAuth, requireAdmin, async (req, res) => {
   const user = req.user!;
   const { meta_access_token, meta_business_id, meta_catalog_id, meta_waba_id } = req.body as {
     meta_access_token?: string; meta_business_id?: string;
