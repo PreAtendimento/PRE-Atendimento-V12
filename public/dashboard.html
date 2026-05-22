@@ -3397,7 +3397,7 @@
         if (!r.ok) return;
         const j = await r.json();
         if (!j.success) return;
-        /* Atualiza cache local para getApiOverrides() funcionar sem nova request */
+        /* Atualiza cache local para preencher o campo URL no formulário */
         const existing = loadAdminConfig() || {};
         localStorage.setItem(CFG_KEY, JSON.stringify({ ...existing, evogoUrl: j.url || '' }));
         const urlEl = document.getElementById('cfg-url');
@@ -3430,7 +3430,7 @@
           const j = await r.json();
 
           if (j.success) {
-            /* Atualiza cache local para getApiOverrides() funcionar imediatamente */
+            /* Atualiza cache local para preencher o formulário de configuração */
             localStorage.setItem(CFG_KEY, JSON.stringify({ evogoUrl: cleanUrl || '', apiKey: key || '' }));
             const badge = document.getElementById('config-saved-badge');
             badge.classList.add('visible');
@@ -3563,15 +3563,7 @@
         const res  = await fetch('/api/instances', {
           method: 'POST',
           headers: getAuthHeaders(),
-          body: JSON.stringify((() => {
-            const adminCfg = loadAdminConfig ? loadAdminConfig() : null;
-            return {
-              instanceName,
-              token: token || undefined,
-              ...(adminCfg?.evogoUrl ? { evogoUrl: adminCfg.evogoUrl } : {}),
-              ...(adminCfg?.apiKey       ? { apiKey:       adminCfg.apiKey       } : {}),
-            };
-          })()),
+          body: JSON.stringify({ instanceName, token: token || undefined }),
         });
         const json = await res.json();
 
@@ -3711,13 +3703,6 @@
     }
 
     /* ─── AÇÕES DE INSTÂNCIA ─── */
-    function getApiOverrides() {
-      const cfg = loadAdminConfig ? loadAdminConfig() : null;
-      return {
-        evogoUrl: cfg?.evogoUrl || undefined,
-        apiKey:       cfg?.apiKey       || undefined,
-      };
-    }
 
     function confirmDisconnect(name) {
       openModal({
@@ -3772,11 +3757,9 @@
     }
 
     async function executeDisconnect(name) {
-      const overrides = getApiOverrides();
       const res  = await fetch(`/api/instances/${encodeURIComponent(name)}/disconnect`, {
         method:  'POST',
         headers: getAuthHeaders(),
-        body:    JSON.stringify(overrides),
       });
       const json = await res.json();
       if (json.success) {
@@ -3789,11 +3772,9 @@
     }
 
     async function executeDelete(name) {
-      const overrides = getApiOverrides();
       const res  = await fetch(`/api/instances/${encodeURIComponent(name)}`, {
         method:  'DELETE',
         headers: getAuthHeaders(),
-        body:    JSON.stringify(overrides),
       });
       const json = await res.json();
       if (json.success) {
@@ -4484,11 +4465,9 @@
       document.getElementById('qr-raw-details').style.display = 'none';
 
       try {
-        const overrides       = getApiOverrides();
         const instanceToken   = _qrCurrentToken || _getInstanceToken(name);
         const params          = new URLSearchParams();
-        if (overrides.evogoUrl) params.set('evogoUrl', overrides.evogoUrl);
-        if (instanceToken)          params.set('instanceToken', instanceToken);
+        if (instanceToken) params.set('instanceToken', instanceToken);
 
         const url  = `/api/instances/${encodeURIComponent(name)}/qrcode${params.size ? '?' + params.toString() : ''}`;
         const res  = await fetch(url, { headers: getAuthHeaders() });
