@@ -908,7 +908,7 @@ app.get('/api/admin/instances', requireAuth, requireAdmin, async (req, res) => {
 /* ── Admin: Testar conexão ───────────────────────────────────────────── */
 app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, res) => {
   const { evolutionUrl, apiKey } = req.body as { evolutionUrl?: string; apiKey?: string };
-  const baseUrl = (evolutionUrl?.trim()) || process.env.EVOLUTION_API_URL || '';
+  const baseUrl = evolutionUrl?.trim() || '';
   const key     = (apiKey?.trim())      || process.env.GLOBAL_API_KEY    || '';
 
   if (!baseUrl) { res.status(400).json({ success: false, error: 'URL da API não informada.' }); return; }

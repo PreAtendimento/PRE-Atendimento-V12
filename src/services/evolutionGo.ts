@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-const EVOLUTION_API_URL = (process.env.EVOLUTION_API_URL || '').replace(/\/$/, '');
+const EVOLUTION_API_URL = '';
 const GLOBAL_API_KEY    = process.env.GLOBAL_API_KEY || '';
 
 export interface EvolutionResponse {
