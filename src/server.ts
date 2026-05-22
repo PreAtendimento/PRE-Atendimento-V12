@@ -908,11 +908,24 @@ app.get('/api/admin/instances', requireAuth, requireAdmin, async (req, res) => {
 /* ── Admin: Testar conexão ───────────────────────────────────────────── */
 app.post('/api/admin/test-connection', requireAuth, requireAdmin, async (req, res) => {
   const { evolutionUrl, apiKey } = req.body as { evolutionUrl?: string; apiKey?: string };
-  const baseUrl = evolutionUrl?.trim() || '';
-  const key     = apiKey?.trim() || '';
+  let baseUrl = evolutionUrl?.trim() || '';
+  let key     = apiKey?.trim()      || '';
 
-  if (!baseUrl) { res.status(400).json({ success: false, error: 'URL da API não informada.' }); return; }
-  if (!key)     { res.status(400).json({ success: false, error: 'Chave da API não informada.' }); return; }
+  /* Se URL ou chave não foram enviadas na request, busca do banco do tenant */
+  if (!baseUrl || !key) {
+    try {
+      const { data } = await supabaseAdmin
+        .from('tenants')
+        .select('evolution_api_url, evolution_global_api_key')
+        .eq('id', req.user!.tenantId)
+        .maybeSingle();
+      if (!baseUrl) baseUrl = data?.evolution_api_url?.trim()        || '';
+      if (!key)     key     = data?.evolution_global_api_key?.trim() || '';
+    } catch { /* segue com o que tiver */ }
+  }
+
+  if (!baseUrl) { res.status(400).json({ success: false, error: 'URL da API não configurada. Salve a URL antes de testar.' }); return; }
+  if (!key)     { res.status(400).json({ success: false, error: 'Chave da API não configurada. Salve a GLOBAL_API_KEY antes de testar.' }); return; }
 
   const url = `${baseUrl}/instance/all`;
   const controller = new AbortController();
