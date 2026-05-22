@@ -2540,8 +2540,8 @@
 
       <!-- ── LISTA (default active) ── -->
 
-      <!-- ── CONFIGURAÇÃO (admin only) — inclui Nova Instância como sub-aba ── -->
-      <div class="panel admin-only" id="panel-config">
+      <!-- ── CONFIGURAÇÃO — Nova Instância (todos) · EvoGo (admin only) ── -->
+      <div class="panel" id="panel-config">
 
         <!-- Sub-abas de Configuração -->
         <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;border-bottom:2px solid var(--border);padding-bottom:0">
@@ -2550,6 +2550,7 @@
             ➕ Nova Instância
           </button>
           <button id="cfgtab-btn-api" onclick="showConfigTab('api')"
+            class="admin-only"
             style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--tx3);margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
             ⚙️ EvoGo
           </button>
@@ -2631,7 +2632,7 @@
         </div>
 
         <!-- Sub-aba: EvoGo -->
-        <div id="cfgtab-api" style="display:none">
+        <div id="cfgtab-api" class="admin-only" style="display:none">
           <div class="card">
             <div class="card-header">
               <div>
@@ -3349,9 +3350,13 @@
 
     /* ── Sub-abas de Configuração ─────────────────────────────────── */
     function showConfigTab(tab) {
+      /* Usuário comum não pode ver a aba EvoGo */
+      if (tab === 'api' && !_isAdmin) tab = 'create';
       ['create','api'].forEach(t => {
         const el  = document.getElementById(`cfgtab-${t}`);
         const btn = document.getElementById(`cfgtab-btn-${t}`);
+        /* Não exibir abas admin-only para usuários comuns */
+        if (t === 'api' && !_isAdmin) return;
         if (el)  el.style.display           = t === tab ? '' : 'none';
         if (btn) btn.style.borderBottomColor = t === tab ? '#25D366' : 'transparent';
         if (btn) btn.style.color             = t === tab ? '#25D366' : 'var(--tx3)';
