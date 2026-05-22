@@ -2422,11 +2422,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <button class="sidebar-nav-item active" id="snav-create"
-        onclick="showPanel('panel-create', null, 'bnav-create', 'snav-create')">
-        Nova Instância
-      </button>
-      <button class="sidebar-nav-item" id="snav-list"
+      <button class="sidebar-nav-item active" id="snav-list"
         onclick="showPanel('panel-list', null, 'bnav-list', 'snav-list')">
         Instâncias
       </button>
@@ -2486,11 +2482,7 @@
     </div>
 
     <nav class="drawer-nav">
-      <button class="drawer-nav-item active" id="dnav-create"
-        onclick="showPanel('panel-create', null, 'bnav-create', 'snav-create'); closeDrawer()">
-        Nova Instância
-      </button>
-      <button class="drawer-nav-item" id="dnav-list"
+      <button class="drawer-nav-item active" id="dnav-list"
         onclick="showPanel('panel-list', null, 'bnav-list', 'snav-list'); closeDrawer()">
         Instâncias
       </button>
@@ -2546,148 +2538,158 @@
     <!-- PANELS -->
     <div class="main">
 
-      <!-- ── CRIAR INSTÂNCIA ── -->
-      <div class="panel active" id="panel-create">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <div class="card-title" style="display:flex;align-items:center;gap:8px;">Nova Instância <img src="/evogo-logo.png" alt="Evo-Go" style="height:22px;width:auto;object-fit:contain;display:inline-block;vertical-align:middle;" /></div>
-              <div class="card-desc">Cria e registra no Pre-Atendimento</div>
+      <!-- ── LISTA (default active) ── -->
+
+      <!-- ── CONFIGURAÇÃO (admin only) — inclui Nova Instância como sub-aba ── -->
+      <div class="panel admin-only" id="panel-config">
+
+        <!-- Sub-abas de Configuração -->
+        <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;border-bottom:2px solid var(--border);padding-bottom:0">
+          <button id="cfgtab-btn-create" onclick="showConfigTab('create')"
+            style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid #25D366;color:#25D366;margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
+            ➕ Nova Instância
+          </button>
+          <button id="cfgtab-btn-api" onclick="showConfigTab('api')"
+            style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--tx3);margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
+            ⚙️ Evolution API
+          </button>
+        </div>
+
+        <!-- Sub-aba: Nova Instância -->
+        <div id="cfgtab-create">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title" style="display:flex;align-items:center;gap:8px;">Nova Instância <img src="/evogo-logo.png" alt="Evo-Go" style="height:22px;width:auto;object-fit:contain;display:inline-block;vertical-align:middle;" /></div>
+                <div class="card-desc">Cria e registra no Pre-Atendimento</div>
+              </div>
+            </div>
+
+            <div id="create-pane-evogo">
+              <form id="form-instance" novalidate>
+                <div class="fields-row">
+                  <div>
+                    <label for="instanceName">Nome da Instância <span style="color:#ef4444">*</span></label>
+                    <div class="field-wrap">
+                      <input type="text" id="instanceName"
+                        placeholder="ex: minha-loja-01"
+                        autocomplete="off" autocorrect="off"
+                        autocapitalize="none" spellcheck="false" required />
+                      <span class="field-dot" id="dot-name"></span>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="inst-token">Token <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0">(Números ou Letras)</span></label>
+                    <div class="field-wrap">
+                      <input type="text" id="inst-token"
+                        placeholder="token personalizado"
+                        autocomplete="off" autocorrect="off"
+                        autocapitalize="none" spellcheck="false" />
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" class="btn" id="btn-instance" disabled>
+                  Criar Instância
+                </button>
+              </form>
+
+              <!-- Bloco de token gerado (Evo-Go) -->
+              <div class="token-block" id="token-block">
+                <div class="token-block-title">✅ Instância criada com sucesso</div>
+                <div class="token-row">
+                  <span class="token-label">Instância</span>
+                  <span class="token-value" id="tk-name">—</span>
+                </div>
+                <div class="token-row">
+                  <span class="token-label">Token</span>
+                  <span class="token-value" id="tk-token">—</span>
+                  <button class="token-copy" onclick="copyToken()">Copiar</button>
+                </div>
+                <div class="token-row">
+                  <span class="token-label">Conexão</span>
+                  <span class="token-value" id="tk-connected">—</span>
+                </div>
+                <div class="token-row">
+                  <span class="token-label">Criado em</span>
+                  <span class="token-value" id="tk-created">—</span>
+                </div>
+                <div style="margin-top:0.85rem">
+                  <button class="btn-qr-create" id="tk-btn-qr"
+                    onclick="_lastCreatedName && openQrModal(_lastCreatedName, _qrCurrentToken)">
+                    📷 Pegar QRCode
+                  </button>
+                </div>
+                <details class="raw-resp-details" id="tk-raw-details" style="display:none;margin-top:0.9rem">
+                  <summary>🔍 Resposta completa da API</summary>
+                  <pre class="raw-resp-pre" id="tk-raw-pre"></pre>
+                </details>
+              </div>
+
+              <div class="alert" id="result-instance"></div>
             </div>
           </div>
+        </div>
 
-          <div id="create-pane-evogo">
-            <form id="form-instance" novalidate>
+        <!-- Sub-aba: Evolution API -->
+        <div id="cfgtab-api" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <img src="/evogo-logo.png" alt="Evo-Go" style="height:32px;width:auto;display:block;object-fit:contain;margin-bottom:0.25rem;" />
+                <div class="card-desc">Visível somente para administradores</div>
+              </div>
+            </div>
 
-              <div class="fields-row">
-                <div>
-                  <label for="instanceName">Nome da Instância <span style="color:#ef4444">*</span></label>
-                  <div class="field-wrap">
-                    <input type="text" id="instanceName"
-                      placeholder="ex: minha-loja-01"
-                      autocomplete="off" autocorrect="off"
-                      autocapitalize="none" spellcheck="false" required />
-                    <span class="field-dot" id="dot-name"></span>
-                  </div>
-                </div>
-                <div>
-                  <label for="inst-token">Token <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0">(Números ou Letras)</span></label>
-                  <div class="field-wrap">
-                    <input type="text" id="inst-token"
-                      placeholder="token personalizado"
-                      autocomplete="off" autocorrect="off"
-                      autocapitalize="none" spellcheck="false" />
-                  </div>
-                </div>
+            <form id="form-config" novalidate>
+              <label for="cfg-url">URL DA API</label>
+              <div class="field-wrap">
+                <input type="text" id="cfg-url"
+                  placeholder="https://evogo.pre-atendimento.com"
+                  autocomplete="off" autocorrect="off"
+                  autocapitalize="none" spellcheck="false" />
               </div>
 
-              <button type="submit" class="btn" id="btn-instance" disabled>
-                Criar Instância
-              </button>
-            </form>
+              <div style="height:0.9rem"></div>
 
-            <!-- Bloco de token gerado (Evo-Go) -->
-            <div class="token-block" id="token-block">
-              <div class="token-block-title">✅ Instância criada com sucesso</div>
-              <div class="token-row">
-                <span class="token-label">Instância</span>
-                <span class="token-value" id="tk-name">—</span>
-              </div>
-              <div class="token-row">
-                <span class="token-label">Token</span>
-                <span class="token-value" id="tk-token">—</span>
-                <button class="token-copy" onclick="copyToken()">Copiar</button>
-              </div>
-              <div class="token-row">
-                <span class="token-label">Conexão</span>
-                <span class="token-value" id="tk-connected">—</span>
-              </div>
-              <div class="token-row">
-                <span class="token-label">Criado em</span>
-                <span class="token-value" id="tk-created">—</span>
+              <label for="cfg-key">GLOBAL_API_KEY</label>
+              <div class="field-wrap">
+                <input type="password" id="cfg-key"
+                  placeholder="Chave de acesso global da API"
+                  autocomplete="off" autocorrect="off"
+                  autocapitalize="none" spellcheck="false" />
               </div>
 
-              <div style="margin-top:0.85rem">
-                <button class="btn-qr-create" id="tk-btn-qr"
-                  onclick="_lastCreatedName && openQrModal(_lastCreatedName, _qrCurrentToken)">
-                  📷 Pegar QRCode
+              <div style="display:flex;gap:0.6rem;margin-top:1rem;flex-wrap:wrap">
+                <button type="submit" class="btn" id="btn-save-config" style="flex:1;min-width:10rem;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 16px rgba(16,185,129,0.3)">
+                  ✅ Salvar Configuração
+                </button>
+                <button type="button" class="btn" id="btn-test-conn" style="flex:1;min-width:10rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 4px 16px rgba(59,130,246,0.3)">
+                  🔌 Testar Conexão
                 </button>
               </div>
+            </form>
 
-              <!-- Resposta completa da API -->
-              <details class="raw-resp-details" id="tk-raw-details" style="display:none;margin-top:0.9rem">
-                <summary>🔍 Resposta completa da API</summary>
-                <pre class="raw-resp-pre" id="tk-raw-pre"></pre>
-              </details>
+            <div class="config-saved-badge" id="config-saved-badge">
+              ✅ Configuração salva com sucesso.
             </div>
 
-            <div class="alert" id="result-instance"></div>
-          </div>
+            <div id="conn-test-result" style="display:none;margin-top:0.85rem;padding:0.75rem 1rem;border-radius:0.6rem;font-size:0.85rem;font-weight:600;line-height:1.4"></div>
 
-
-        </div>
-      </div>
-
-      <!-- ── CONFIGURAÇÃO (admin only) ── -->
-      <div class="panel admin-only" id="panel-config">
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <img src="/evogo-logo.png" alt="Evo-Go" style="height:32px;width:auto;display:block;object-fit:contain;margin-bottom:0.25rem;" />
-              <div class="card-desc">Visível somente para administradores</div>
+            <div style="margin-top:1rem">
+              <div class="config-status" id="config-status-url">
+                <span id="cfg-icon-url">○</span> URL da API
+              </div>
+              <div class="config-status" id="config-status-key">
+                <span id="cfg-icon-key">○</span> GLOBAL_API_KEY
+              </div>
             </div>
           </div>
-
-          <form id="form-config" novalidate>
-            <label for="cfg-url">URL DA API</label>
-            <div class="field-wrap">
-              <input type="text" id="cfg-url"
-                placeholder="https://evogo.pre-atendimento.com"
-                autocomplete="off" autocorrect="off"
-                autocapitalize="none" spellcheck="false" />
-            </div>
-
-            <div style="height:0.9rem"></div>
-
-            <label for="cfg-key">GLOBAL_API_KEY</label>
-            <div class="field-wrap">
-              <input type="password" id="cfg-key"
-                placeholder="Chave de acesso global da API"
-                autocomplete="off" autocorrect="off"
-                autocapitalize="none" spellcheck="false" />
-            </div>
-
-            <div style="display:flex;gap:0.6rem;margin-top:1rem;flex-wrap:wrap">
-              <button type="submit" class="btn" id="btn-save-config" style="flex:1;min-width:10rem;background:linear-gradient(135deg,#059669,#10b981);box-shadow:0 4px 16px rgba(16,185,129,0.3)">
-                ✅ Salvar Configuração
-              </button>
-              <button type="button" class="btn" id="btn-test-conn" style="flex:1;min-width:10rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 4px 16px rgba(59,130,246,0.3)">
-                🔌 Testar Conexão
-              </button>
-            </div>
-          </form>
-
-          <div class="config-saved-badge" id="config-saved-badge">
-            ✅ Configuração salva com sucesso.
-          </div>
-
-          <div id="conn-test-result" style="display:none;margin-top:0.85rem;padding:0.75rem 1rem;border-radius:0.6rem;font-size:0.85rem;font-weight:600;line-height:1.4"></div>
-
-          <div style="margin-top:1rem">
-            <div class="config-status" id="config-status-url">
-              <span id="cfg-icon-url">○</span> URL da API
-            </div>
-            <div class="config-status" id="config-status-key">
-              <span id="cfg-icon-key">○</span> GLOBAL_API_KEY
-            </div>
-          </div>
-
         </div>
 
       </div>
 
       <!-- ── LISTA ── -->
-      <div class="panel" id="panel-list">
+      <div class="panel active" id="panel-list">
         <div class="inst-list-page">
           <div class="inst-page-header">
             <div>
@@ -2695,7 +2697,7 @@
               <div class="inst-page-desc">Gerencie suas instâncias WhatsApp do Evolution GO</div>
             </div>
             <button class="btn-new-instance"
-              onclick="showPanel('panel-create', null, 'bnav-create', 'snav-create')">
+              onclick="showPanel('panel-config', null, 'bnav-config', 'snav-config'); showConfigTab('create')">
               + Nova Instância
             </button>
           </div>
@@ -3130,11 +3132,7 @@
 
     <!-- BOTTOM NAV (mobile only) -->
     <nav class="bottom-nav">
-      <div class="bottom-nav-item active" id="bnav-create"
-        onclick="showPanel('panel-create', null, 'bnav-create')">
-        <span class="bottom-nav-icon">➕</span>Nova
-      </div>
-      <div class="bottom-nav-item" id="bnav-list"
+      <div class="bottom-nav-item active" id="bnav-list"
         onclick="showPanel('panel-list', null, 'bnav-list')">
         <span class="bottom-nav-icon">📋</span>Instâncias
       </div>
@@ -3313,9 +3311,9 @@
     }
 
     /* ─── NAV ─── */
-    const panelToSnav = { 'panel-create':'snav-create','panel-list':'snav-list','panel-monitor':'snav-monitor','panel-catalog':'snav-catalog','panel-users':'snav-users','panel-config':'snav-config' };
-    const panelToDnav = { 'panel-create':'dnav-create','panel-list':'dnav-list','panel-monitor':'dnav-monitor','panel-catalog':'dnav-catalog','panel-users':'dnav-users','panel-config':'dnav-config' };
-    const panelToBnav = { 'panel-create':'bnav-create','panel-list':'bnav-list','panel-monitor':'bnav-monitor','panel-catalog':'bnav-catalog','panel-users':'bnav-users','panel-config':'bnav-config' };
+    const panelToSnav = { 'panel-list':'snav-list','panel-monitor':'snav-monitor','panel-catalog':'snav-catalog','panel-users':'snav-users','panel-config':'snav-config' };
+    const panelToDnav = { 'panel-list':'dnav-list','panel-monitor':'dnav-monitor','panel-catalog':'dnav-catalog','panel-users':'dnav-users','panel-config':'dnav-config' };
+    const panelToBnav = { 'panel-list':'bnav-list','panel-monitor':'bnav-monitor','panel-catalog':'bnav-catalog','panel-users':'bnav-users','panel-config':'bnav-config' };
 
     function showPanel(panelId, tabEl, bnavId, snavId) {
       /* Panels */
@@ -3346,6 +3344,17 @@
       if (panelId === 'panel-config') loadEvolutionConfig();
 
       if (panelId === 'panel-catalog') { loadCollections(); loadItems(); }
+    }
+
+    /* ── Sub-abas de Configuração ─────────────────────────────────── */
+    function showConfigTab(tab) {
+      ['create','api'].forEach(t => {
+        const el  = document.getElementById(`cfgtab-${t}`);
+        const btn = document.getElementById(`cfgtab-btn-${t}`);
+        if (el)  el.style.display           = t === tab ? '' : 'none';
+        if (btn) btn.style.borderBottomColor = t === tab ? '#25D366' : 'transparent';
+        if (btn) btn.style.color             = t === tab ? '#25D366' : 'var(--tx3)';
+      });
     }
 
     /* ─── CONFIG ADMIN ─── */
