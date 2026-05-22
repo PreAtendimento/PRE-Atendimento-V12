@@ -4259,7 +4259,7 @@
     let _qrTimer          = null;
     let _qrCurrentName    = null;
     let _qrCurrentToken   = null;   /* token da instância para auth no /instance/qr */
-    let _qrCountdown      = 60;
+    let _qrCountdown      = 120;
     let _qrPollingTimer   = null;   /* polling quando QR ainda não está disponível */
     let _qrPollingCount   = 0;
     const QR_POLL_MAX     = 35;     /* máx 35 tentativas × 3s = 105s de espera */
@@ -4409,7 +4409,7 @@
       clearTimeout(_qrPollingTimer);
       _qrPollingTimer = null;
       _qrPollingCount = 0;
-      _qrCountdown    = 60;
+      _qrCountdown    = 120;
       const timerEl   = document.getElementById('qr-timer');
       timerEl.textContent = `Atualizando em ${_qrCountdown}s…`;
 
