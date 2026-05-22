@@ -99,8 +99,8 @@ export async function registerUser(
     const password_hash = await bcrypt.hash(password, 10);
 
     const { rows } = await client.query<{ id: string; name: string; email: string; role: string; tenant_id: string }>(
-      `INSERT INTO public.users (name, email, password_hash, role, active, tenant_id)
-       VALUES ($1, $2, $3, $4, true, $5)
+      `INSERT INTO public.users (name, email, password_hash, role, active, tenant_id, max_instances)
+       VALUES ($1, $2, $3, $4, true, $5, 3)
        RETURNING id, name, email, role, tenant_id`,
       [name.trim(), email.toLowerCase().trim(), password_hash, role, resolvedTenantId]
     );
