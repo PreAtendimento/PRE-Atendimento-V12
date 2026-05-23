@@ -1376,7 +1376,7 @@ app.post('/api/meta-config', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-/* ── Criar Produto no Catálogo Meta ─────────────────────────────── */
+/* ── Criar Produto no Catálogo (Meta opcional) ───────────────────── */
 app.post('/api/catalog/products', requireAuth, async (req, res) => {
   const user = req.user!;
   const { name, description, price, image_url, availability, collection_id } = req.body as {
@@ -1384,66 +1384,68 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
     image_url?: string; availability?: string; collection_id?: string | null;
   };
 
-  if (!name?.trim())      { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
-  if (!image_url?.trim()) { res.status(400).json({ success: false, error: 'URL da imagem é obrigatória.' }); return; }
+  if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
   if (price == null || isNaN(Number(price)) || Number(price) < 0) {
     res.status(400).json({ success: false, error: 'Preço é obrigatório e deve ser >= 0.' }); return;
   }
   const avail = availability || 'in stock';
 
   try {
-    // Buscar credenciais Meta no banco
+    /* ── Tentar sincronizar com Meta (opcional) ── */
+    let metaProductId: string | null = null;
+    let metaSynced = false;
+    let metaWarning: string | undefined;
+
     let cfgQ = supabaseAdmin.from('tenant_meta_config').select('*');
     if (user.tenantId) cfgQ = cfgQ.eq('tenant_id', user.tenantId);
     cfgQ = (cfgQ as any).eq('user_id', user.userId).maybeSingle();
-    const { data: cfg, error: cfgErr } = await (cfgQ as any);
-    if (cfgErr) { res.status(500).json({ success: false, error: cfgErr.message }); return; }
-    if (!cfg?.meta_access_token || !cfg?.meta_catalog_id) {
-      res.status(400).json({
-        success: false,
-        error: 'Catálogo Meta não conectado. Configure suas credenciais na aba Meta Secrets.',
-      });
-      return;
+    const { data: cfg } = await (cfgQ as any);
+
+    if (cfg?.meta_access_token && cfg?.meta_catalog_id && image_url?.trim()) {
+      try {
+        const catalogId    = cfg.meta_catalog_id;
+        const token        = cfg.meta_access_token;
+        const retailerId   = `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const priceInCents = Math.round(Number(price) * 100);
+        const appUrl       = `https://${(process.env.REPLIT_DOMAINS || 'localhost').split(',')[0]}`;
+
+        const metaUrl     = `https://graph.facebook.com/v20.0/${catalogId}/products`;
+        const metaPayload = new URLSearchParams({
+          retailer_id : retailerId,
+          name        : name.trim(),
+          description : description?.trim() || name.trim(),
+          url         : appUrl,
+          image_url   : image_url.trim(),
+          currency    : 'BRL',
+          price       : String(priceInCents),
+          availability: avail,
+          condition   : 'new',
+        });
+
+        console.log(`[META CATALOG] POST ${metaUrl}`);
+        const metaRes  = await fetch(metaUrl, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: metaPayload,
+        });
+        const metaJson = await metaRes.json() as Record<string, unknown>;
+        console.log(`[META CATALOG] Response (${metaRes.status}):`, JSON.stringify(metaJson));
+
+        if (metaRes.ok && (metaJson as any).id) {
+          metaProductId = String((metaJson as any).id);
+          metaSynced    = true;
+        } else {
+          const err = (metaJson as any)?.error;
+          metaWarning = err?.message || err?.error_user_msg || 'Falha ao sincronizar com Meta (salvo localmente).';
+          console.warn(`[META CATALOG] Sincronização falhou (salvo localmente):`, metaWarning);
+        }
+      } catch (metaErr) {
+        metaWarning = 'Erro de rede ao acessar Meta API (salvo localmente).';
+        console.warn('[META CATALOG] Exceção na sincronização:', metaErr);
+      }
     }
 
-    const catalogId    = cfg.meta_catalog_id;
-    const token        = cfg.meta_access_token;
-    const retailerId   = `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const priceInCents = Math.round(Number(price) * 100);
-    const appUrl       = `https://${(process.env.REPLIT_DOMAINS || 'localhost').split(',')[0]}`;
-
-    const metaUrl     = `https://graph.facebook.com/v20.0/${catalogId}/products`;
-    const metaPayload = new URLSearchParams({
-      retailer_id : retailerId,
-      name        : name.trim(),
-      description : description?.trim() || name.trim(),
-      url         : appUrl,
-      image_url   : image_url.trim(),
-      currency    : 'BRL',
-      price       : String(priceInCents),
-      availability: avail,
-      condition   : 'new',
-    });
-
-    console.log(`[META CATALOG] POST ${metaUrl}`);
-    console.log(`[META CATALOG] Payload: ${metaPayload.toString()}`);
-
-    const metaRes  = await fetch(metaUrl, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: metaPayload,
-    });
-    const metaJson = await metaRes.json() as Record<string, unknown>;
-    console.log(`[META CATALOG] Response (${metaRes.status}):`, JSON.stringify(metaJson));
-
-    if (!metaRes.ok || !(metaJson as any).id) {
-      const err = (metaJson as any)?.error;
-      const errMsg = err?.message || err?.error_user_msg || JSON.stringify(metaJson);
-      console.error(`[META CATALOG] Erro:`, errMsg);
-      res.status(502).json({ success: false, error: `Meta API: ${errMsg}`, meta_response: metaJson });
-      return;
-    }
-
+    /* ── Sempre salvar no Supabase ── */
     const { data: item, error: dbErr } = await supabaseAdmin
       .from('catalog_items')
       .insert({
@@ -1452,9 +1454,9 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
         price          : price ?? null,
         currency       : 'BRL',
         availability   : avail,
-        image_url      : image_url.trim(),
+        image_url      : image_url?.trim() || null,
         collection_id  : collection_id || null,
-        meta_product_id: (metaJson as any).id,
+        meta_product_id: metaProductId,
         tenant_id      : user.tenantId || null,
         created_by     : user.userId,
       })
@@ -1462,9 +1464,16 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
       .single();
 
     if (dbErr) { res.status(500).json({ success: false, error: dbErr.message }); return; }
-    res.status(201).json({ success: true, data: item, meta_product_id: (metaJson as any).id });
+
+    res.status(201).json({
+      success: true,
+      data: item,
+      meta_synced:    metaSynced,
+      meta_product_id: metaProductId,
+      ...(metaWarning ? { warning: metaWarning } : {}),
+    });
   } catch (err: unknown) {
-    console.error('[META CATALOG] Exceção:', err);
+    console.error('[CATALOG] Exceção:', err);
     res.status(500).json({ success: false, error: (err as Error).message });
   }
 });

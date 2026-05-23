@@ -3068,7 +3068,7 @@
             <div class="card-header">
               <div>
                 <div class="card-title">Produtos</div>
-                <div class="card-desc">Criados via Meta Commerce API e vinculados ao catálogo real</div>
+                <div class="card-desc">Cadastro local — sincroniza com Meta automaticamente se credenciais estiverem configuradas</div>
               </div>
               <button class="btn" id="btn-toggle-add-item"
                 style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)"
@@ -3077,9 +3077,9 @@
 
             <div id="add-item-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
 
-              <!-- Banner de aviso se Meta não configurado -->
-              <div id="meta-not-configured-warn" class="admin-only" style="display:none;margin-bottom:1rem;padding:0.75rem 1rem;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:0.6rem;font-size:0.82rem;color:#fbbf24">
-                ⚠️ <strong>Catálogo Meta não conectado.</strong> Configure suas credenciais na aba <a href="#" onclick="showCatalogTab('meta');return false" style="color:#fbbf24;text-decoration:underline">Meta Secrets</a> antes de adicionar produtos.
+              <!-- Banner informativo: Meta opcional -->
+              <div id="meta-not-configured-warn" style="margin-bottom:1rem;padding:0.65rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:0.6rem;font-size:0.8rem;color:var(--tx3)">
+                💡 Sem credenciais Meta configuradas, os produtos serão salvos apenas localmente. <a href="#" onclick="showCatalogTab('meta');return false" style="color:#3b82f6;text-decoration:underline">Configurar Meta</a>
               </div>
 
               <label for="item-name">Nome do Produto <span style="color:#f87171">*</span></label>
@@ -3113,7 +3113,7 @@
                 </div>
               </div>
 
-              <label for="item-image">URL da Imagem <span style="color:#f87171">*</span></label>
+              <label for="item-image">URL da Imagem <span style="color:var(--tx4);font-weight:400">(opcional — exigida pela Meta)</span></label>
               <div class="field-wrap" style="margin-bottom:0.75rem">
                 <input type="url" id="item-image" placeholder="https://exemplo.com/imagem.jpg" autocomplete="off" />
               </div>
@@ -3126,11 +3126,11 @@
               </div>
 
               <div style="font-size:0.75rem;color:var(--tx4);margin-bottom:0.9rem">
-                🔗 O produto será criado no catálogo real da Meta via Commerce API (currency: BRL)
+                💾 Produto salvo localmente no Supabase. Se Meta estiver configurada e imagem preenchida, sincroniza automaticamente.
               </div>
 
               <div style="display:flex;gap:0.6rem">
-                <button class="btn" id="btn-save-item" onclick="saveItem()" style="flex:1;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)">✅ Criar no Catálogo Meta</button>
+                <button class="btn" id="btn-save-item" onclick="saveItem()" style="flex:1;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)">✅ Salvar Produto</button>
                 <button class="btn" onclick="toggleAddItemForm()" style="flex:1;background:transparent;border:1px solid var(--border);color:var(--tx3)">Cancelar</button>
               </div>
             </div>
@@ -5410,7 +5410,7 @@
       } catch { showToast('❌ Erro ao criar coleção.', 'err'); }
     }
 
-    /* ── Criar Produto via Meta API ───────────────────────────────── */
+    /* ── Salvar Produto (local + Meta opcional) ───────────────────── */
     async function saveItem() {
       const name         = document.getElementById('item-name').value.trim();
       const desc         = document.getElementById('item-desc').value.trim();
@@ -5419,39 +5419,41 @@
       const availability = document.getElementById('item-availability').value;
       const collectionId = document.getElementById('item-collection').value;
 
-      if (!name)     { showToast('❌ Nome do produto é obrigatório.', 'err'); return; }
-      if (!imageUrl) { showToast('❌ URL da imagem é obrigatória.', 'err'); return; }
+      if (!name)          { showToast('❌ Nome do produto é obrigatório.', 'err'); return; }
       if (priceRaw === '') { showToast('❌ Preço é obrigatório.', 'err'); return; }
       const price = parseFloat(priceRaw);
       if (isNaN(price) || price < 0) { showToast('❌ Preço inválido.', 'err'); return; }
 
       const btn = document.getElementById('btn-save-item');
-      if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando para Meta…'; }
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
       try {
         const res  = await fetch('/api/catalog/products', {
           method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, description: desc || null, price, image_url: imageUrl, availability, collection_id: collectionId || null }),
+          body: JSON.stringify({ name, description: desc || null, price, image_url: imageUrl || null, availability, collection_id: collectionId || null }),
         });
         const json = await res.json();
         if (json.success) {
-          showToast(`✅ Produto criado na Meta! ID: ${json.meta_product_id}`, 'ok');
-          document.getElementById('item-name').value        = '';
-          document.getElementById('item-desc').value        = '';
-          document.getElementById('item-price').value       = '';
-          document.getElementById('item-image').value       = '';
-          document.getElementById('item-collection').value  = '';
+          if (json.meta_synced) {
+            showToast(`✅ Produto salvo e sincronizado com Meta! ID: ${json.meta_product_id}`, 'ok');
+          } else if (json.warning) {
+            showToast(`⚠️ Produto salvo localmente. Meta: ${json.warning}`, 'ok');
+          } else {
+            showToast('✅ Produto salvo localmente.', 'ok');
+          }
+          document.getElementById('item-name').value         = '';
+          document.getElementById('item-desc').value         = '';
+          document.getElementById('item-price').value        = '';
+          document.getElementById('item-image').value        = '';
+          document.getElementById('item-collection').value   = '';
           document.getElementById('item-availability').value = 'in stock';
           toggleAddItemForm();
           loadItems();
         } else {
-          showToast(`❌ ${json.error || 'Falha ao criar produto.'}`, 'err');
-          if (json.error && json.error.includes('Meta não conectado')) {
-            document.getElementById('meta-not-configured-warn').style.display = '';
-          }
+          showToast(`❌ ${json.error || 'Falha ao salvar produto.'}`, 'err');
         }
-      } catch { showToast('❌ Erro de conexão ao criar produto.', 'err'); }
+      } catch { showToast('❌ Erro de conexão ao salvar produto.', 'err'); }
       finally {
-        if (btn) { btn.disabled = false; btn.textContent = '✅ Criar no Catálogo Meta'; }
+        if (btn) { btn.disabled = false; btn.textContent = '✅ Salvar Produto'; }
       }
     }
 
