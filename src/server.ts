@@ -1480,6 +1480,14 @@ app.get('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res)
   }
 });
 
+/* ── Helper: parse seguro de resposta do CRM (aceita HTML sem travar) */
+async function safeJsonCRM(r: globalThis.Response): Promise<{ ok: boolean; status: number; body: Record<string, unknown>; raw: string }> {
+  const raw = await r.text();
+  let body: Record<string, unknown> = {};
+  try { body = JSON.parse(raw) as Record<string, unknown>; } catch { /* HTML ou resposta vazia */ }
+  return { ok: r.ok, status: r.status, body, raw };
+}
+
 /* ── Listar produtos do EvoAI CRM (proxy) ───────────────────────── */
 app.get('/api/admin/crm/products', requireAuth, requireAdmin, async (req, res) => {
   const page     = Number(req.query.page     || 1);
@@ -1489,13 +1497,14 @@ app.get('/api/admin/crm/products', requireAuth, requireAdmin, async (req, res) =
     if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
     const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products?page=${page}&per_page=${per_page}`;
     console.log(`[EVO CRM] GET ${url}`);
-    const r    = await fetch(url, { headers: { 'api_access_token': cfg.token } });
-    const json = await r.json() as Record<string, unknown>;
-    if (!r.ok) {
-      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao buscar produtos do CRM.' });
+    const r   = await fetch(url, { headers: { 'api_access_token': cfg.token } });
+    const { ok, status, body, raw } = await safeJsonCRM(r);
+    if (!ok) {
+      const msg = (body as any)?.message || (body as any)?.error || `HTTP ${status}${raw.startsWith('<') ? ' (resposta HTML — verifique URL e token do CRM)' : ''}`;
+      res.status(status).json({ success: false, error: msg });
       return;
     }
-    res.json({ success: true, data: json });
+    res.json({ success: true, data: body });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
@@ -1509,13 +1518,14 @@ app.get('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmin
     if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
     const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products/${productId}/variants`;
     console.log(`[EVO CRM] GET ${url}`);
-    const r    = await fetch(url, { headers: { 'api_access_token': cfg.token } });
-    const json = await r.json() as Record<string, unknown>;
-    if (!r.ok) {
-      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao buscar variantes.' });
+    const r   = await fetch(url, { headers: { 'api_access_token': cfg.token } });
+    const { ok, status, body, raw } = await safeJsonCRM(r);
+    if (!ok) {
+      const msg = (body as any)?.message || (body as any)?.error || `HTTP ${status}${raw.startsWith('<') ? ' (resposta HTML — verifique URL e token do CRM)' : ''}`;
+      res.status(status).json({ success: false, error: msg });
       return;
     }
-    res.json({ success: true, data: json });
+    res.json({ success: true, data: body });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
@@ -1530,13 +1540,10 @@ app.delete('/api/admin/crm/products/:productId/variants/:variantId', requireAuth
     const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products/${productId}/variants/${variantId}`;
     console.log(`[EVO CRM] DELETE ${url}`);
     const r = await fetch(url, { method: 'DELETE', headers: { 'api_access_token': cfg.token } });
-    if (r.status === 204 || r.status === 200) {
-      res.json({ success: true });
-      return;
-    }
-    let json: Record<string, unknown> = {};
-    try { json = await r.json() as Record<string, unknown>; } catch {}
-    res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao excluir variante.' });
+    if (r.status === 204 || r.status === 200) { res.json({ success: true }); return; }
+    const { status, body, raw } = await safeJsonCRM(r);
+    const msg = (body as any)?.message || (body as any)?.error || `HTTP ${status}${raw.startsWith('<') ? ' (resposta HTML — verifique URL e token do CRM)' : ''}`;
+    res.status(status).json({ success: false, error: msg });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
@@ -1561,18 +1568,19 @@ app.patch('/api/admin/crm/products/:productId/variants/:variantId', requireAuth,
     if (stock_quantity  !== undefined) payload.stock_quantity  = stock_quantity  != null ? Number(stock_quantity)  : null;
     if (position        !== undefined) payload.position        = position        != null ? Number(position)        : null;
     if (attributes_data !== undefined) payload.attributes_data = attributes_data;
-    const r    = await fetch(url, {
+    const r = await fetch(url, {
       method : 'PATCH',
       headers: { 'Content-Type': 'application/json', 'api_access_token': cfg.token },
       body   : JSON.stringify({ variant: payload }),
     });
-    const json = await r.json() as Record<string, unknown>;
-    console.log(`[EVO CRM] PATCH variant response (${r.status}):`, JSON.stringify(json));
-    if (!r.ok) {
-      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao editar variante.' });
+    const { ok, status, body, raw } = await safeJsonCRM(r);
+    console.log(`[EVO CRM] PATCH variant response (${status}):`, raw.slice(0, 200));
+    if (!ok) {
+      const msg = (body as any)?.message || (body as any)?.error || `HTTP ${status}${raw.startsWith('<') ? ' (resposta HTML — verifique URL e token do CRM)' : ''}`;
+      res.status(status).json({ success: false, error: msg });
       return;
     }
-    res.json({ success: true, data: json });
+    res.json({ success: true, data: body });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
@@ -1591,7 +1599,7 @@ app.post('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmi
     if (!cfg) { res.status(400).json({ success: false, error: 'EvoAI CRM não configurado.' }); return; }
     const url = `${cfg.url.replace(/\/$/, '')}/api/v1/products/${productId}/variants`;
     console.log(`[EVO CRM] POST ${url}`);
-    const r    = await fetch(url, {
+    const r = await fetch(url, {
       method : 'POST',
       headers: { 'Content-Type': 'application/json', 'api_access_token': cfg.token },
       body   : JSON.stringify({
@@ -1605,13 +1613,14 @@ app.post('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmi
         },
       }),
     });
-    const json = await r.json() as Record<string, unknown>;
-    console.log(`[EVO CRM] POST variants response (${r.status}):`, JSON.stringify(json));
-    if (!r.ok) {
-      res.status(r.status).json({ success: false, error: (json as any)?.message || 'Falha ao criar variante.' });
+    const { ok, status, body, raw } = await safeJsonCRM(r);
+    console.log(`[EVO CRM] POST variants response (${status}):`, raw.slice(0, 200));
+    if (!ok) {
+      const msg = (body as any)?.message || (body as any)?.error || `HTTP ${status}${raw.startsWith('<') ? ' (resposta HTML — verifique URL e token do CRM)' : ''}`;
+      res.status(status).json({ success: false, error: msg });
       return;
     }
-    res.status(201).json({ success: true, data: json });
+    res.status(201).json({ success: true, data: body });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
