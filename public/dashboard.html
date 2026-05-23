@@ -3055,10 +3055,10 @@
             style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--tx3);margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
             📂 Coleções
           </button>
-          <button id="ctab-btn-meta" onclick="showCatalogTab('meta')"
+          <button id="ctab-btn-crm" onclick="showCatalogTab('crm')"
             class="admin-only"
             style="padding:0.55rem 1.1rem;font-size:0.85rem;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--tx3);margin-bottom:-2px;border-radius:0.4rem 0.4rem 0 0;transition:all 0.15s">
-            🔐 Meta Secrets
+            🤖 EvoAI CRM
           </button>
         </div>
 
@@ -3068,7 +3068,7 @@
             <div class="card-header">
               <div>
                 <div class="card-title">Produtos</div>
-                <div class="card-desc">Cadastro local — sincroniza com Meta automaticamente se credenciais estiverem configuradas</div>
+                <div class="card-desc">Cadastro local — sincroniza com EvoAI CRM automaticamente se configurado</div>
               </div>
               <button class="btn" id="btn-toggle-add-item"
                 style="padding:0.45rem 0.9rem;font-size:0.82rem;background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 3px 10px rgba(59,130,246,0.25)"
@@ -3077,9 +3077,9 @@
 
             <div id="add-item-form" style="display:none;margin-bottom:1rem;padding:1rem;border:1px solid var(--border);border-radius:0.75rem;background:var(--bg)">
 
-              <!-- Banner informativo: Meta opcional -->
+              <!-- Banner informativo: EvoAI CRM opcional -->
               <div id="meta-not-configured-warn" style="margin-bottom:1rem;padding:0.65rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:0.6rem;font-size:0.8rem;color:var(--tx3)">
-                💡 Sem credenciais Meta configuradas, os produtos serão salvos apenas localmente. <a href="#" onclick="showCatalogTab('meta');return false" style="color:#3b82f6;text-decoration:underline">Configurar Meta</a>
+                💡 Sem EvoAI CRM configurado, os produtos serão salvos apenas localmente. <a href="#" onclick="showCatalogTab('crm');return false" style="color:#3b82f6;text-decoration:underline">Configurar EvoAI CRM</a>
               </div>
 
               <label for="item-name">Nome do Produto <span style="color:#f87171">*</span></label>
@@ -3092,15 +3092,26 @@
                 <input type="text" id="item-desc" placeholder="Descreva o produto" autocomplete="off" />
               </div>
 
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.65rem;margin-bottom:0.75rem">
                 <div>
-                  <label for="item-price">Preço em BRL <span style="color:#f87171">*</span></label>
+                  <label for="item-price">Preço BRL <span style="color:#f87171">*</span></label>
                   <div class="field-wrap">
                     <input type="number" id="item-price" placeholder="0.00" min="0" step="0.01" autocomplete="off" />
                   </div>
                 </div>
                 <div>
-                  <label for="item-availability">Disponibilidade <span style="color:#f87171">*</span></label>
+                  <label for="item-kind">Tipo</label>
+                  <div class="field-wrap">
+                    <select id="item-kind" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
+                      <option value="physical">Físico</option>
+                      <option value="digital">Digital</option>
+                      <option value="subscription">Assinatura</option>
+                      <option value="service">Serviço</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label for="item-availability">Disponibilidade</label>
                   <div class="field-wrap">
                     <select id="item-availability" style="width:100%;padding:0.7rem 0.85rem;border-radius:0.6rem;border:1px solid rgba(37,211,102,0.25);background:var(--card);color:var(--tx1);font-size:0.9rem">
                       <option value="in stock">Em estoque</option>
@@ -3113,9 +3124,29 @@
                 </div>
               </div>
 
-              <label for="item-image">URL da Imagem <span style="color:var(--tx4);font-weight:400">(opcional — exigida pela Meta)</span></label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.65rem;margin-bottom:0.75rem">
+                <div>
+                  <label for="item-sku">SKU <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+                  <div class="field-wrap">
+                    <input type="text" id="item-sku" placeholder="Ex: PROD-001" autocomplete="off" />
+                  </div>
+                </div>
+                <div>
+                  <label for="item-stock">Estoque <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+                  <div class="field-wrap">
+                    <input type="number" id="item-stock" placeholder="Ex: 100" min="0" step="1" autocomplete="off" />
+                  </div>
+                </div>
+              </div>
+
+              <label for="item-image">URL da Imagem <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
               <div class="field-wrap" style="margin-bottom:0.75rem">
                 <input type="url" id="item-image" placeholder="https://exemplo.com/imagem.jpg" autocomplete="off" />
+              </div>
+
+              <label for="item-purchase-url">Link de Compra <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
+              <div class="field-wrap" style="margin-bottom:0.75rem">
+                <input type="url" id="item-purchase-url" placeholder="https://loja.com/produto" autocomplete="off" />
               </div>
 
               <label for="item-collection">Coleção <span style="color:var(--tx4);font-weight:400">(opcional)</span></label>
@@ -3126,7 +3157,7 @@
               </div>
 
               <div style="font-size:0.75rem;color:var(--tx4);margin-bottom:0.9rem">
-                💾 Produto salvo localmente no Supabase. Se Meta estiver configurada e imagem preenchida, sincroniza automaticamente.
+                💾 Salvo localmente. Se EvoAI CRM estiver configurado, sincroniza automaticamente.
               </div>
 
               <div style="display:flex;gap:0.6rem">
@@ -3175,82 +3206,52 @@
           </div>
         </div>
 
-        <!-- Aba: Meta Secrets -->
-        <div id="ctab-meta" style="display:none">
+        <!-- Aba: EvoAI CRM -->
+        <div id="ctab-crm" style="display:none">
           <div class="card">
 
-            <!-- Header estilo Secrets -->
             <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem;padding-bottom:0.9rem;border-bottom:1px solid var(--border)">
-              <span style="font-size:1.1rem">🔒</span>
-              <span style="font-size:1rem;font-weight:700;color:var(--tx1)">Secrets</span>
-              <span id="meta-config-badge" style="display:none;margin-left:auto;font-size:0.72rem;padding:0.2rem 0.6rem;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-weight:600">✓ Configurado</span>
+              <span style="font-size:1.1rem">🤖</span>
+              <span style="font-size:1rem;font-weight:700;color:var(--tx1)">EvoAI CRM — Integração de Produtos</span>
+              <span id="crm-config-badge" style="display:none;margin-left:auto;font-size:0.72rem;padding:0.2rem 0.6rem;border-radius:999px;background:rgba(16,185,129,0.15);color:#10b981;font-weight:600">✓ Configurado</span>
             </div>
 
-            <!-- Tabela de secrets -->
             <div style="border:1px solid var(--border);border-radius:0.7rem;overflow:hidden;margin-bottom:1.25rem">
-
-              <!-- Header da tabela -->
-              <div style="display:grid;grid-template-columns:180px 1fr;background:var(--bg);padding:0.55rem 1rem;border-bottom:1px solid var(--border)">
-                <span style="font-size:0.78rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em">Key</span>
-                <span style="font-size:0.78rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:0.3rem">Value <span style="font-size:0.9rem;cursor:pointer" onclick="toggleMetaSecrets()" title="Mostrar/Ocultar valores">👁</span></span>
+              <div style="display:grid;grid-template-columns:160px 1fr;background:var(--bg);padding:0.55rem 1rem;border-bottom:1px solid var(--border)">
+                <span style="font-size:0.78rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em">Campo</span>
+                <span style="font-size:0.78rem;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:0.3rem">Valor <span style="font-size:0.9rem;cursor:pointer" onclick="toggleCRMSecrets()" title="Mostrar/Ocultar">👁</span></span>
               </div>
 
-              <!-- Linha: META_ACCESS_TOKEN -->
-              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
-                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_ACCESS_TOKEN</span>
+              <!-- CRM URL -->
+              <div style="display:grid;grid-template-columns:160px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">CRM_URL</span>
+                <input type="text" id="crm-url" placeholder="https://api.evoai.app"
+                  style="width:100%;padding:0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
+              </div>
+
+              <!-- CRM Token -->
+              <div style="display:grid;grid-template-columns:160px 1fr;padding:0.65rem 1rem;align-items:center">
+                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">API_TOKEN</span>
                 <div style="position:relative;display:flex;align-items:center">
-                  <input type="password" id="meta-access-token" placeholder="EAAxxxxx…"
+                  <input type="password" id="crm-token" placeholder="seu api_access_token…"
                     style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
                   <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
                 </div>
               </div>
-
-              <!-- Linha: META_BUSINESS_ID -->
-              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
-                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_BUSINESS_ID</span>
-                <div style="position:relative;display:flex;align-items:center">
-                  <input type="password" id="meta-business-id" placeholder="123456789"
-                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
-                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
-                </div>
-              </div>
-
-              <!-- Linha: META_CATALOG_ID -->
-              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;border-bottom:1px solid var(--border);align-items:center">
-                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_CATALOG_ID</span>
-                <div style="position:relative;display:flex;align-items:center">
-                  <input type="password" id="meta-catalog-id" placeholder="987654321"
-                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
-                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
-                </div>
-              </div>
-
-              <!-- Linha: META_WABA_ID -->
-              <div style="display:grid;grid-template-columns:180px 1fr;padding:0.65rem 1rem;align-items:center">
-                <span style="font-size:0.82rem;font-weight:600;color:var(--tx2);font-family:monospace">META_WABA_ID</span>
-                <div style="position:relative;display:flex;align-items:center">
-                  <input type="password" id="meta-waba-id" placeholder="112233445566"
-                    style="width:100%;padding:0.45rem 2.2rem 0.45rem 0.7rem;border-radius:0.5rem;border:1px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.82rem;font-family:monospace" autocomplete="off" />
-                  <span style="position:absolute;right:0.5rem;color:var(--tx4);font-size:0.9rem">🔑</span>
-                </div>
-              </div>
-
-            </div><!-- /tabela -->
-
-            <!-- Info de onde encontrar -->
-            <div style="margin-bottom:1.25rem;padding:0.75rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:0.6rem;font-size:0.78rem;color:var(--tx3);line-height:1.6">
-              📌 <strong style="color:var(--tx2)">Onde encontrar:</strong><br>
-              Business Manager → <em>business.facebook.com</em> → Configurações → Contas → WhatsApp Business<br>
-              Commerce Manager → <em>business.facebook.com/commerce</em> → seu Catálogo → ID do catálogo
             </div>
 
-            <!-- Botões -->
+            <div style="margin-bottom:1.25rem;padding:0.75rem 1rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:0.6rem;font-size:0.78rem;color:var(--tx3);line-height:1.6">
+              📌 <strong style="color:var(--tx2)">Como obter:</strong><br>
+              Acesse seu painel EvoAI CRM → Configurações → Integrações → API Access Token<br>
+              Documentação: <a href="https://docs.evolutionfoundation.com.br/evo-ai-crm/create-product" target="_blank" style="color:#3b82f6">docs.evolutionfoundation.com.br</a>
+            </div>
+
             <div style="display:flex;gap:0.75rem">
-              <button class="btn" onclick="saveMetaConfig()"
-                style="flex:1;background:linear-gradient(135deg,#1d4ed8,#2563eb);box-shadow:0 3px 10px rgba(37,99,235,0.3)">
-                🔐 Continue
+              <button class="btn" onclick="saveCRMConfig()"
+                style="flex:1;background:linear-gradient(135deg,#0891b2,#0e7490);box-shadow:0 3px 10px rgba(8,145,178,0.3)">
+                💾 Salvar Configuração
               </button>
-              <button class="btn" onclick="loadMetaConfig()"
+              <button class="btn" onclick="loadCRMConfig()"
                 style="padding:0 1rem;background:transparent;border:1px solid var(--border);color:var(--tx3);font-size:0.82rem">
                 ↺ Recarregar
               </button>
@@ -5241,73 +5242,61 @@
 
     /* ── Sub-abas do Catálogo ─────────────────────────────────────── */
     function showCatalogTab(tab) {
-      ['products','collections','meta'].forEach(t => {
+      ['products','collections','crm'].forEach(t => {
         document.getElementById(`ctab-${t}`).style.display          = t === tab ? '' : 'none';
         const btn = document.getElementById(`ctab-btn-${t}`);
         btn.style.borderBottomColor = t === tab ? '#25D366' : 'transparent';
         btn.style.color             = t === tab ? '#25D366' : 'var(--tx3)';
       });
-      if (tab === 'meta') loadMetaConfig();
+      if (tab === 'crm') loadCRMConfig();
     }
 
-    /* ── Alternar visibilidade dos campos de secret ───────────────── */
-    function toggleMetaSecrets() {
+    /* ── Alternar visibilidade do token CRM ───────────────────────── */
+    function toggleCRMSecrets() {
       _metaSecretsVisible = !_metaSecretsVisible;
-      ['meta-access-token','meta-business-id','meta-catalog-id','meta-waba-id'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.type = _metaSecretsVisible ? 'text' : 'password';
-      });
+      const el = document.getElementById('crm-token');
+      if (el) el.type = _metaSecretsVisible ? 'text' : 'password';
     }
 
-    /* ── Carregar Meta Config ─────────────────────────────────────── */
-    async function loadMetaConfig() {
+    /* ── Carregar EvoAI CRM Config ────────────────────────────────── */
+    async function loadCRMConfig() {
       if (!_isAdmin) return;
       try {
-        const res  = await fetch('/api/meta-config', { headers: getAuthHeaders() });
+        const res  = await fetch('/api/admin/config/evo-crm', { headers: getAuthHeaders() });
         const json = await res.json();
         _metaConfigured = json.configured || false;
-        const badge = document.getElementById('meta-config-badge');
+        const badge = document.getElementById('crm-config-badge');
         if (badge) badge.style.display = _metaConfigured ? '' : 'none';
-        if (json.data) {
-          const d = json.data;
-          if (d.meta_access_token) document.getElementById('meta-access-token').placeholder = d.meta_access_token;
-          if (d.meta_business_id)  document.getElementById('meta-business-id').value  = d.meta_business_id;
-          if (d.meta_catalog_id)   document.getElementById('meta-catalog-id').value   = d.meta_catalog_id;
-          if (d.meta_waba_id)      document.getElementById('meta-waba-id').value       = d.meta_waba_id;
+        if (json.url) document.getElementById('crm-url').value = json.url;
+        if (json.tokenConfigured) {
+          document.getElementById('crm-token').placeholder = '••••••••(salvo)';
         }
       } catch { /* silently ignore */ }
     }
 
-    /* ── Salvar Meta Config ───────────────────────────────────────── */
-    async function saveMetaConfig() {
-      const token     = document.getElementById('meta-access-token').value.trim();
-      const bizId     = document.getElementById('meta-business-id').value.trim();
-      const catalogId = document.getElementById('meta-catalog-id').value.trim();
-      const wabaId    = document.getElementById('meta-waba-id').value.trim();
-      if (!token)     { showToast('❌ META_ACCESS_TOKEN é obrigatório.', 'err'); return; }
-      if (!catalogId) { showToast('❌ META_CATALOG_ID é obrigatório.', 'err'); return; }
+    /* ── Salvar EvoAI CRM Config ──────────────────────────────────── */
+    async function saveCRMConfig() {
+      const url   = document.getElementById('crm-url').value.trim();
+      const token = document.getElementById('crm-token').value.trim();
+      if (!url)   { showToast('❌ URL do EvoAI CRM é obrigatória.', 'err'); return; }
+      if (!token) { showToast('❌ API Token é obrigatório.', 'err'); return; }
       try {
-        const res  = await fetch('/api/meta-config', {
+        const res  = await fetch('/api/admin/config/evo-crm', {
           method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            meta_access_token: token,
-            meta_business_id : bizId   || null,
-            meta_catalog_id  : catalogId,
-            meta_waba_id     : wabaId  || null,
-          }),
+          body: JSON.stringify({ url, token }),
         });
         const json = await res.json();
         if (json.success) {
-          showToast('✅ Credenciais Meta salvas com sucesso!', 'ok');
+          showToast('✅ EvoAI CRM configurado com sucesso!', 'ok');
           _metaConfigured = true;
-          const badge = document.getElementById('meta-config-badge');
+          const badge = document.getElementById('crm-config-badge');
           if (badge) badge.style.display = '';
-          document.getElementById('meta-access-token').value = '';
-          document.getElementById('meta-access-token').placeholder = '••••••••(salvo)';
+          document.getElementById('crm-token').value = '';
+          document.getElementById('crm-token').placeholder = '••••••••(salvo)';
         } else {
-          showToast(`❌ ${json.error || 'Falha ao salvar credenciais.'}`, 'err');
+          showToast(`❌ ${json.error || 'Falha ao salvar configuração.'}`, 'err');
         }
-      } catch { showToast('❌ Erro ao salvar credenciais.', 'err'); }
+      } catch { showToast('❌ Erro ao salvar configuração.', 'err'); }
     }
 
     /* ── Carregar Coleções ────────────────────────────────────────── */
@@ -5412,40 +5401,55 @@
 
     /* ── Salvar Produto (local + Meta opcional) ───────────────────── */
     async function saveItem() {
-      const name         = document.getElementById('item-name').value.trim();
-      const desc         = document.getElementById('item-desc').value.trim();
-      const priceRaw     = document.getElementById('item-price').value.trim();
-      const imageUrl     = document.getElementById('item-image').value.trim();
-      const availability = document.getElementById('item-availability').value;
-      const collectionId = document.getElementById('item-collection').value;
+      const name          = document.getElementById('item-name').value.trim();
+      const desc          = document.getElementById('item-desc').value.trim();
+      const priceRaw      = document.getElementById('item-price').value.trim();
+      const imageUrl      = document.getElementById('item-image').value.trim();
+      const availability  = document.getElementById('item-availability').value;
+      const collectionId  = document.getElementById('item-collection').value;
+      const kind          = document.getElementById('item-kind').value;
+      const sku           = document.getElementById('item-sku').value.trim();
+      const stockRaw      = document.getElementById('item-stock').value.trim();
+      const purchaseUrl   = document.getElementById('item-purchase-url').value.trim();
 
-      if (!name)          { showToast('❌ Nome do produto é obrigatório.', 'err'); return; }
+      if (!name)           { showToast('❌ Nome do produto é obrigatório.', 'err'); return; }
       if (priceRaw === '') { showToast('❌ Preço é obrigatório.', 'err'); return; }
       const price = parseFloat(priceRaw);
       if (isNaN(price) || price < 0) { showToast('❌ Preço inválido.', 'err'); return; }
+      const stock_quantity = stockRaw !== '' ? parseInt(stockRaw, 10) : null;
 
       const btn = document.getElementById('btn-save-item');
       if (btn) { btn.disabled = true; btn.textContent = '⏳ Salvando…'; }
       try {
         const res  = await fetch('/api/catalog/products', {
           method: 'POST', headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, description: desc || null, price, image_url: imageUrl || null, availability, collection_id: collectionId || null }),
+          body: JSON.stringify({
+            name, description: desc || null, price,
+            image_url: imageUrl || null, availability,
+            collection_id: collectionId || null,
+            kind, sku: sku || null, stock_quantity,
+            purchase_url: purchaseUrl || null,
+          }),
         });
         const json = await res.json();
         if (json.success) {
-          if (json.meta_synced) {
-            showToast(`✅ Produto salvo e sincronizado com Meta! ID: ${json.meta_product_id}`, 'ok');
+          if (json.crm_synced) {
+            showToast(`✅ Produto salvo e sincronizado com EvoAI CRM! ID: ${json.crm_product_id}`, 'ok');
           } else if (json.warning) {
-            showToast(`⚠️ Produto salvo localmente. Meta: ${json.warning}`, 'ok');
+            showToast(`⚠️ Produto salvo localmente. CRM: ${json.warning}`, 'ok');
           } else {
             showToast('✅ Produto salvo localmente.', 'ok');
           }
-          document.getElementById('item-name').value         = '';
-          document.getElementById('item-desc').value         = '';
-          document.getElementById('item-price').value        = '';
-          document.getElementById('item-image').value        = '';
-          document.getElementById('item-collection').value   = '';
-          document.getElementById('item-availability').value = 'in stock';
+          document.getElementById('item-name').value          = '';
+          document.getElementById('item-desc').value          = '';
+          document.getElementById('item-price').value         = '';
+          document.getElementById('item-image').value         = '';
+          document.getElementById('item-collection').value    = '';
+          document.getElementById('item-availability').value  = 'in stock';
+          document.getElementById('item-kind').value          = 'physical';
+          document.getElementById('item-sku').value           = '';
+          document.getElementById('item-stock').value         = '';
+          document.getElementById('item-purchase-url').value  = '';
           toggleAddItemForm();
           loadItems();
         } else {
@@ -5457,17 +5461,16 @@
       }
     }
 
-    /* ── Abrir form de produto (verificar se Meta está configurado) ─ */
+    /* ── Abrir form de produto (verificar se EvoAI CRM está configurado) ─ */
     async function toggleAddItemForm() {
       const form = document.getElementById('add-item-form');
       const isHidden = form.style.display === 'none';
       form.style.display = isHidden ? '' : 'none';
       if (isHidden) {
         populateCollectionSelect();
-        // Verificar se Meta está configurado (somente admin)
         if (_isAdmin) {
           try {
-            const res  = await fetch('/api/meta-config', { headers: getAuthHeaders() });
+            const res  = await fetch('/api/admin/config/evo-crm', { headers: getAuthHeaders() });
             const json = await res.json();
             const warn = document.getElementById('meta-not-configured-warn');
             if (warn) warn.style.display = json.configured ? 'none' : '';

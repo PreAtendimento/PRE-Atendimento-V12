@@ -96,6 +96,18 @@ function extractInstanceToken(meta: Record<string, unknown>): string {
   return '';
 }
 
+/* ── Helper: resolve config EvoAI CRM (global — tabela system_config) ── */
+async function getEvoCRMConfig(): Promise<{ url: string; token: string } | null> {
+  const { data } = await supabaseAdmin
+    .from('system_config')
+    .select('key, value')
+    .in('key', ['evo_crm_url', 'evo_crm_token']);
+  const url   = (data as { key: string; value: string }[] | null)?.find(r => r.key === 'evo_crm_url')?.value?.trim()   || '';
+  const token = (data as { key: string; value: string }[] | null)?.find(r => r.key === 'evo_crm_token')?.value?.trim() || '';
+  if (!url || !token) return null;
+  return { url, token };
+}
+
 /* ── Helper: resolve config EvoGo (global — tabela system_config) ── */
 async function getEvoGoConfig(): Promise<{ url: string; key: string }> {
   const { data } = await supabaseAdmin
@@ -1317,6 +1329,52 @@ app.delete('/api/catalog/items/:id', requireAuth, async (req, res) => {
 });
 
 /* ══════════════════════════════════════════════════════════════════
+   EVO CRM CONFIG — URL + token global (system_config)
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Ler config EvoAI CRM ───────────────────────────────────────── */
+app.get('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { data } = await supabaseAdmin
+      .from('system_config')
+      .select('key, value')
+      .in('key', ['evo_crm_url', 'evo_crm_token']);
+    const rows  = data as { key: string; value: string }[] | null;
+    const url   = rows?.find(r => r.key === 'evo_crm_url')?.value?.trim()   || '';
+    const token = rows?.find(r => r.key === 'evo_crm_token')?.value?.trim() || '';
+    res.json({ success: true, url, configured: !!(url && token), tokenConfigured: !!token });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Salvar config EvoAI CRM ────────────────────────────────────── */
+app.post('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res) => {
+  const { url, token } = req.body as { url?: string; token?: string };
+  const cleanUrl   = url?.trim()   || '';
+  const cleanToken = token?.trim() || '';
+  if (!cleanUrl || !cleanToken) {
+    res.status(400).json({ success: false, error: 'URL e API Token são obrigatórios.' }); return;
+  }
+  try { new URL(cleanUrl); } catch {
+    res.status(400).json({ success: false, error: 'URL inválida. Ex: https://api.evoai.app' }); return;
+  }
+  try {
+    const now = new Date().toISOString();
+    const { error } = await supabaseAdmin
+      .from('system_config')
+      .upsert([
+        { key: 'evo_crm_url',   value: cleanUrl,   updated_at: now },
+        { key: 'evo_crm_token', value: cleanToken,  updated_at: now },
+      ], { onConflict: 'key' });
+    if (error) { res.status(500).json({ success: false, error: error.message }); return; }
+    res.json({ success: true });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════════
    META CONFIG — Credenciais por tenant salvas no Supabase
    ══════════════════════════════════════════════════════════════════ */
 
@@ -1376,12 +1434,16 @@ app.post('/api/meta-config', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-/* ── Criar Produto no Catálogo (Meta opcional) ───────────────────── */
+/* ── Criar Produto no Catálogo (EvoAI CRM opcional) ─────────────── */
 app.post('/api/catalog/products', requireAuth, async (req, res) => {
   const user = req.user!;
-  const { name, description, price, image_url, availability, collection_id } = req.body as {
+  const {
+    name, description, price, image_url, availability, collection_id,
+    kind, sku, purchase_url, stock_quantity,
+  } = req.body as {
     name?: string; description?: string; price?: number | null;
     image_url?: string; availability?: string; collection_id?: string | null;
+    kind?: string; sku?: string; purchase_url?: string; stock_quantity?: number | null;
   };
 
   if (!name?.trim()) { res.status(400).json({ success: false, error: 'Nome é obrigatório.' }); return; }
@@ -1391,57 +1453,57 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
   const avail = availability || 'in stock';
 
   try {
-    /* ── Tentar sincronizar com Meta (opcional) ── */
-    let metaProductId: string | null = null;
-    let metaSynced = false;
-    let metaWarning: string | undefined;
+    /* ── Tentar sincronizar com EvoAI CRM (opcional) ── */
+    let crmProductId: string | null = null;
+    let crmSynced    = false;
+    let crmWarning: string | undefined;
 
-    let cfgQ = supabaseAdmin.from('tenant_meta_config').select('*');
-    if (user.tenantId) cfgQ = cfgQ.eq('tenant_id', user.tenantId);
-    cfgQ = (cfgQ as any).eq('user_id', user.userId).maybeSingle();
-    const { data: cfg } = await (cfgQ as any);
-
-    if (cfg?.meta_access_token && cfg?.meta_catalog_id && image_url?.trim()) {
+    const crmCfg = await getEvoCRMConfig();
+    if (crmCfg) {
       try {
-        const catalogId    = cfg.meta_catalog_id;
-        const token        = cfg.meta_access_token;
-        const retailerId   = `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        const priceInCents = Math.round(Number(price) * 100);
-        const appUrl       = `https://${(process.env.REPLIT_DOMAINS || 'localhost').split(',')[0]}`;
+        const slug = (name.trim())
+          .toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          + '-' + Date.now().toString(36);
 
-        const metaUrl     = `https://graph.facebook.com/v20.0/${catalogId}/products`;
-        const metaPayload = new URLSearchParams({
-          retailer_id : retailerId,
-          name        : name.trim(),
-          description : description?.trim() || name.trim(),
-          url         : appUrl,
-          image_url   : image_url.trim(),
-          currency    : 'BRL',
-          price       : String(priceInCents),
-          availability: avail,
-          condition   : 'new',
+        const payload: Record<string, unknown> = {
+          product: {
+            name         : name.trim(),
+            slug,
+            kind         : kind || 'physical',
+            description  : description?.trim() || null,
+            sku          : sku?.trim()          || null,
+            default_price: Number(price),
+            currency     : 'BRL',
+            purchase_url : purchase_url?.trim() || null,
+            stock_quantity: stock_quantity != null ? Number(stock_quantity) : null,
+            metadata     : { image_url: image_url?.trim() || null },
+          },
+          labels: [],
+        };
+
+        const crmUrl = `${crmCfg.url.replace(/\/$/, '')}/api/v1/products`;
+        console.log(`[EVO CRM] POST ${crmUrl}`);
+        const crmRes  = await fetch(crmUrl, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json', 'api_access_token': crmCfg.token },
+          body   : JSON.stringify(payload),
         });
+        const crmJson = await crmRes.json() as Record<string, unknown>;
+        console.log(`[EVO CRM] Response (${crmRes.status}):`, JSON.stringify(crmJson));
 
-        console.log(`[META CATALOG] POST ${metaUrl}`);
-        const metaRes  = await fetch(metaUrl, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: metaPayload,
-        });
-        const metaJson = await metaRes.json() as Record<string, unknown>;
-        console.log(`[META CATALOG] Response (${metaRes.status}):`, JSON.stringify(metaJson));
-
-        if (metaRes.ok && (metaJson as any).id) {
-          metaProductId = String((metaJson as any).id);
-          metaSynced    = true;
+        if (crmRes.ok && (crmJson as any).id) {
+          crmProductId = String((crmJson as any).id);
+          crmSynced    = true;
         } else {
-          const err = (metaJson as any)?.error;
-          metaWarning = err?.message || err?.error_user_msg || 'Falha ao sincronizar com Meta (salvo localmente).';
-          console.warn(`[META CATALOG] Sincronização falhou (salvo localmente):`, metaWarning);
+          crmWarning = (crmJson as any)?.message || (crmJson as any)?.error || 'Falha ao sincronizar com EvoAI CRM.';
+          console.warn('[EVO CRM] Sincronização falhou:', crmWarning);
         }
-      } catch (metaErr) {
-        metaWarning = 'Erro de rede ao acessar Meta API (salvo localmente).';
-        console.warn('[META CATALOG] Exceção na sincronização:', metaErr);
+      } catch (crmErr) {
+        crmWarning = 'Erro de rede ao acessar EvoAI CRM (salvo localmente).';
+        console.warn('[EVO CRM] Exceção:', crmErr);
       }
     }
 
@@ -1454,10 +1516,10 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
         price          : price ?? null,
         currency       : 'BRL',
         availability   : avail,
-        image_url      : image_url?.trim() || null,
-        collection_id  : collection_id || null,
-        meta_product_id: metaProductId,
-        tenant_id      : user.tenantId || null,
+        image_url      : image_url?.trim()      || null,
+        collection_id  : collection_id           || null,
+        meta_product_id: crmProductId,
+        tenant_id      : user.tenantId           || null,
         created_by     : user.userId,
       })
       .select('id, name, description, price, image_url, availability, meta_product_id, collection_id, created_at')
@@ -1466,11 +1528,11 @@ app.post('/api/catalog/products', requireAuth, async (req, res) => {
     if (dbErr) { res.status(500).json({ success: false, error: dbErr.message }); return; }
 
     res.status(201).json({
-      success: true,
-      data: item,
-      meta_synced:    metaSynced,
-      meta_product_id: metaProductId,
-      ...(metaWarning ? { warning: metaWarning } : {}),
+      success        : true,
+      data           : item,
+      crm_synced     : crmSynced,
+      crm_product_id : crmProductId,
+      ...(crmWarning ? { warning: crmWarning } : {}),
     });
   } catch (err: unknown) {
     console.error('[CATALOG] Exceção:', err);
