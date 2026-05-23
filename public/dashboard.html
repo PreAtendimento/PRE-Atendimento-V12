@@ -5564,7 +5564,13 @@
           });
           json = await res.json();
           if (json.success) {
-            showToast('✅ Produto atualizado com sucesso!', 'ok');
+            if (json.crm_synced) {
+              showToast('✅ Produto atualizado e sincronizado com EvoAI CRM!', 'ok');
+            } else if (json.warning) {
+              showToast(`⚠️ Produto atualizado localmente. CRM: ${json.warning}`, 'ok');
+            } else {
+              showToast('✅ Produto atualizado com sucesso!', 'ok');
+            }
           } else {
             showToast(`❌ ${json.error || 'Falha ao atualizar produto.'}`, 'err');
             return;

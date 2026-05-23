@@ -1326,21 +1326,76 @@ app.put('/api/catalog/items/:id', requireAuth, async (req, res) => {
     res.status(400).json({ success: false, error: 'Preço inválido.' }); return;
   }
   try {
+    /* ── 1. Buscar item atual para obter meta_product_id (CRM ID) ── */
+    let fetchQ = supabaseAdmin
+      .from('catalog_items')
+      .select('id, meta_product_id')
+      .eq('id', id);
+    if (!isAdmin) fetchQ = fetchQ.eq('created_by', user.userId);
+    const { data: existing } = await fetchQ.maybeSingle();
+
+    /* ── 2. Atualizar no Supabase ── */
     let q = supabaseAdmin
       .from('catalog_items')
       .update({
-        name        : name.trim(),
-        description : description?.trim() || null,
-        price       : price ?? null,
-        availability: availability || 'in stock',
-        image_url   : image_url?.trim()  || null,
-        collection_id: collection_id     || null,
+        name         : name.trim(),
+        description  : description?.trim() || null,
+        price        : price ?? null,
+        availability : availability || 'in stock',
+        image_url    : image_url?.trim()  || null,
+        collection_id: collection_id      || null,
       })
       .eq('id', id);
     if (!isAdmin) q = q.eq('created_by', user.userId);
-    const { data, error } = await q.select('id, name, description, price, availability, image_url, collection_id').single();
+    const { data, error } = await q
+      .select('id, name, description, price, availability, image_url, collection_id, meta_product_id')
+      .single();
     if (error) { res.status(500).json({ success: false, error: error.message }); return; }
-    res.json({ success: true, data });
+
+    /* ── 3. Sincronizar com EvoAI CRM via PATCH (se tiver CRM ID) ── */
+    let crmSynced  = false;
+    let crmWarning: string | undefined;
+    const crmId    = existing?.meta_product_id;
+    if (crmId) {
+      const crmCfg = await getEvoCRMConfig();
+      if (crmCfg) {
+        try {
+          const patchUrl = `${crmCfg.url.replace(/\/$/, '')}/api/v1/products/${crmId}`;
+          console.log(`[EVO CRM] PATCH ${patchUrl}`);
+          const patchRes  = await fetch(patchUrl, {
+            method : 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'api_access_token': crmCfg.token },
+            body   : JSON.stringify({
+              product: {
+                name         : name.trim(),
+                description  : description?.trim() || null,
+                default_price: Number(price),
+                currency     : 'BRL',
+                metadata     : { image_url: image_url?.trim() || null },
+              },
+            }),
+          });
+          const patchJson = await patchRes.json() as Record<string, unknown>;
+          console.log(`[EVO CRM] PATCH response (${patchRes.status}):`, JSON.stringify(patchJson));
+          if (patchRes.ok) {
+            crmSynced = true;
+          } else {
+            crmWarning = (patchJson as any)?.message || (patchJson as any)?.error || 'Falha ao sincronizar com CRM.';
+            console.warn('[EVO CRM] PATCH falhou:', crmWarning);
+          }
+        } catch (crmErr) {
+          crmWarning = 'Erro de rede ao sincronizar com CRM.';
+          console.warn('[EVO CRM] Exceção no PATCH:', crmErr);
+        }
+      }
+    }
+
+    res.json({
+      success   : true,
+      data,
+      crm_synced: crmSynced,
+      ...(crmWarning ? { warning: crmWarning } : {}),
+    });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }
