@@ -836,6 +836,92 @@ app.delete('/api/instances/:name/purge', requireAuth, async (req, res) => {
   }
 });
 
+/* ── Buscar configurações da instância (webhook + avançadas) ─────────── */
+app.get('/api/instances/:name/settings', requireAuth, async (req, res) => {
+  const { name } = req.params;
+  const user     = req.user!;
+  const isAdmin  = user.role === 'admin';
+  try {
+    let query = supabaseAdmin.from('instances').select('metadata').eq('instance_name', name);
+    if (!isAdmin) {
+      if (user.tenantId) query = query.eq('tenant_id', user.tenantId);
+      query = query.eq('created_by', user.userId);
+    }
+    const { data: inst, error } = await query.maybeSingle();
+    if (error || !inst) { res.status(404).json({ success: false, error: 'Instância não encontrada.' }); return; }
+    const meta = (inst.metadata as Record<string, unknown>) || {};
+    res.json({ success: true, webhook: (meta.webhook as object) || {}, advanced: (meta.advanced as object) || {} });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Salvar configurações de webhook ─────────────────────────────────── */
+app.post('/api/instances/:name/webhook', requireAuth, async (req, res) => {
+  const { name } = req.params;
+  const user     = req.user!;
+  const isAdmin  = user.role === 'admin';
+  const { url, events, rabbitmq, websocket, nats } = req.body as {
+    url?: string; events?: string[]; rabbitmq?: string; websocket?: string; nats?: string;
+  };
+  try {
+    let query = supabaseAdmin.from('instances').select('metadata').eq('instance_name', name);
+    if (!isAdmin) {
+      if (user.tenantId) query = query.eq('tenant_id', user.tenantId);
+      query = query.eq('created_by', user.userId);
+    }
+    const { data: inst, error } = await query.maybeSingle();
+    if (error || !inst) { res.status(404).json({ success: false, error: 'Instância não encontrada.' }); return; }
+    const meta = ((inst.metadata as Record<string, unknown>) || {}) as Record<string, unknown>;
+    meta.webhook = { url: url || '', events: events || [], rabbitmq: rabbitmq || 'default', websocket: websocket || 'default', nats: nats || 'default' };
+    let upQuery = supabaseAdmin.from('instances').update({ metadata: meta }).eq('instance_name', name);
+    if (!isAdmin) {
+      if (user.tenantId) upQuery = upQuery.eq('tenant_id', user.tenantId);
+      upQuery = upQuery.eq('created_by', user.userId);
+    }
+    const { error: upErr } = await upQuery;
+    if (upErr) { res.status(500).json({ success: false, error: upErr.message }); return; }
+    res.json({ success: true });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
+/* ── Salvar configurações avançadas ──────────────────────────────────── */
+app.post('/api/instances/:name/advanced', requireAuth, async (req, res) => {
+  const { name } = req.params;
+  const user     = req.user!;
+  const isAdmin  = user.role === 'admin';
+  const { alwaysOnline, rejectCall, readMessages, ignoreGroups, ignoreStatus } = req.body as {
+    alwaysOnline?: boolean; rejectCall?: boolean; readMessages?: boolean;
+    ignoreGroups?: boolean; ignoreStatus?: boolean;
+  };
+  try {
+    let query = supabaseAdmin.from('instances').select('metadata').eq('instance_name', name);
+    if (!isAdmin) {
+      if (user.tenantId) query = query.eq('tenant_id', user.tenantId);
+      query = query.eq('created_by', user.userId);
+    }
+    const { data: inst, error } = await query.maybeSingle();
+    if (error || !inst) { res.status(404).json({ success: false, error: 'Instância não encontrada.' }); return; }
+    const meta = ((inst.metadata as Record<string, unknown>) || {}) as Record<string, unknown>;
+    meta.advanced = {
+      alwaysOnline: !!alwaysOnline, rejectCall: !!rejectCall,
+      readMessages: !!readMessages, ignoreGroups: !!ignoreGroups, ignoreStatus: !!ignoreStatus,
+    };
+    let upQuery = supabaseAdmin.from('instances').update({ metadata: meta }).eq('instance_name', name);
+    if (!isAdmin) {
+      if (user.tenantId) upQuery = upQuery.eq('tenant_id', user.tenantId);
+      upQuery = upQuery.eq('created_by', user.userId);
+    }
+    const { error: upErr } = await upQuery;
+    if (upErr) { res.status(500).json({ success: false, error: upErr.message }); return; }
+    res.json({ success: true });
+  } catch (err: unknown) {
+    res.status(500).json({ success: false, error: (err as Error).message });
+  }
+});
+
 /* ── Admin: Atribuir dono de instância ──────────────────────────────── */
 app.patch('/api/instances/:name/owner', requireAuth, requireAdmin, async (req, res) => {
   const { name }   = req.params;

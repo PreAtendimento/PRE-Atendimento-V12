@@ -1344,6 +1344,42 @@
     }
     .is-danger-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
+    /* ─── TOGGLE SWITCH ─── */
+    .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: var(--border); border-radius: 24px;
+      transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%;
+      transition: transform 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: #25D366; }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+
+    /* ─── WEBHOOK EVENTS GRID ─── */
+    .wh-event-label {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.78rem; color: var(--tx2); font-weight: 500;
+      cursor: pointer; user-select: none;
+    }
+    .wh-event-label input[type=checkbox] {
+      accent-color: #25D366; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
+    }
+
+    /* ─── TOKEN MASK ─── */
+    .token-wrap { display: flex; align-items: center; gap: 0.4rem; }
+    .btn-reveal {
+      background: none; border: none; cursor: pointer; padding: 0;
+      color: var(--tx4); font-size: 0.95rem; line-height: 1;
+      flex-shrink: 0;
+    }
+    .btn-reveal:hover { color: var(--tx2); }
+
     /* ─── DESKTOP INSTANCE HEADER ─── */
     .is-desktop-header {
       display: none;
@@ -2777,7 +2813,10 @@
               <div class="is-info-col">
                 <div class="is-row">
                   <span class="is-row-label">Token da Instância</span>
-                  <span class="is-row-value" id="is-token" style="font-family:'Courier New',monospace;font-size:0.78rem;word-break:break-all;max-width:180px;display:inline-block">—</span>
+                  <span class="is-row-value token-wrap">
+                    <span id="is-token" style="font-family:'Courier New',monospace;font-size:0.78rem;word-break:break-all;max-width:160px;display:inline-block">—</span>
+                    <button class="btn-reveal" id="is-token-reveal" title="Mostrar/Ocultar token" onclick="toggleTokenReveal()">👁</button>
+                  </span>
                 </div>
                 <div class="is-row">
                   <span class="is-row-label">Número</span>
@@ -2799,6 +2838,95 @@
               <button class="btn-qr" id="is-btn-qr" style="width:100%">
                 📷 Abrir QR Code
               </button>
+            </div>
+          </div>
+
+          <!-- Configurações de Webhook -->
+          <div class="is-section" id="is-section-webhook">
+            <div class="is-section-title">🔗 Configurações de Webhook</div>
+            <div class="is-section-body">
+              <label style="font-size:0.8rem;color:var(--tx3);font-weight:600;display:block;margin-bottom:0.35rem">URL do Webhook</label>
+              <input type="url" id="is-webhook-url" placeholder="https://seu-servidor.com/webhook"
+                style="width:100%;padding:0.7rem 0.85rem;border-radius:10px;border:1.5px solid var(--border);background:var(--card);color:var(--tx1);font-size:0.85rem;outline:none;box-sizing:border-box;margin-bottom:0.25rem" />
+              <p style="font-size:0.75rem;color:var(--tx4);margin:0 0 0.9rem">URL que receberá os eventos do WhatsApp</p>
+              <label style="font-size:0.8rem;color:var(--tx3);font-weight:600;display:block;margin-bottom:0.6rem">Eventos para Webhook</label>
+              <div id="is-webhook-events" style="display:grid;grid-template-columns:1fr 1fr;gap:0.45rem 1rem;margin-bottom:1rem"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.65rem;margin-bottom:1rem">
+                <div>
+                  <label style="font-size:0.72rem;color:var(--tx4);font-weight:700;display:block;margin-bottom:0.3rem">RabbitMQ</label>
+                  <select id="is-webhook-rabbitmq" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--tx2);font-size:0.78rem;outline:none">
+                    <option value="default">Padrão</option>
+                    <option value="enabled">Habilitado</option>
+                    <option value="disabled">Desabilitado</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:0.72rem;color:var(--tx4);font-weight:700;display:block;margin-bottom:0.3rem">WebSocket</label>
+                  <select id="is-webhook-websocket" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--tx2);font-size:0.78rem;outline:none">
+                    <option value="default">Padrão</option>
+                    <option value="enabled">Habilitado</option>
+                    <option value="disabled">Desabilitado</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:0.72rem;color:var(--tx4);font-weight:700;display:block;margin-bottom:0.3rem">NATS</label>
+                  <select id="is-webhook-nats" style="width:100%;padding:0.5rem 0.6rem;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--tx2);font-size:0.78rem;outline:none">
+                    <option value="default">Padrão</option>
+                    <option value="enabled">Habilitado</option>
+                    <option value="disabled">Desabilitado</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn" id="is-btn-save-webhook" style="width:100%;background:linear-gradient(135deg,#0891b2,#0e7490);box-shadow:0 4px 14px rgba(8,145,178,0.25)">
+                💾 Salvar Webhook
+              </button>
+              <div id="is-webhook-alert" class="alert" style="margin-top:0.6rem"></div>
+            </div>
+          </div>
+
+          <!-- Configurações Avançadas -->
+          <div class="is-section" id="is-section-advanced">
+            <div class="is-section-title">⚙ Configurações Avançadas</div>
+            <div class="is-row" style="align-items:center">
+              <div>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--tx2)">Always Online</div>
+                <div style="font-size:0.75rem;color:var(--tx4)">Manter sempre online no WhatsApp</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="is-adv-always-online"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="is-row" style="align-items:center">
+              <div>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--tx2)">Reject Call</div>
+                <div style="font-size:0.75rem;color:var(--tx4)">Rejeitar chamadas automaticamente</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="is-adv-reject-call"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="is-row" style="align-items:center">
+              <div>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--tx2)">Read Messages</div>
+                <div style="font-size:0.75rem;color:var(--tx4)">Marcar mensagens como lidas</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="is-adv-read-messages"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="is-row" style="align-items:center">
+              <div>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--tx2)">Ignore Groups</div>
+                <div style="font-size:0.75rem;color:var(--tx4)">Ignorar mensagens de grupos</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="is-adv-ignore-groups"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="is-row" style="align-items:center">
+              <div>
+                <div style="font-size:0.85rem;font-weight:600;color:var(--tx2)">Ignore Status</div>
+                <div style="font-size:0.75rem;color:var(--tx4)">Ignorar atualizações de status</div>
+              </div>
+              <label class="toggle-switch"><input type="checkbox" id="is-adv-ignore-status"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="is-section-body" style="padding-top:0.5rem">
+              <button class="btn" id="is-btn-save-advanced" style="width:100%;background:linear-gradient(135deg,#4f46e5,#6366f1);box-shadow:0 4px 14px rgba(99,102,241,0.25)">
+                💾 Salvar Avançadas
+              </button>
+              <div id="is-advanced-alert" class="alert" style="margin-top:0.6rem"></div>
             </div>
           </div>
 
@@ -4089,11 +4217,13 @@
       /* Status — mostra "verificando" e busca via API */
       document.getElementById('is-connection').innerHTML = '<span class="conn-badge checking">···</span>';
 
-      /* Token da instância */
+      /* Token da instância — armazena e exibe mascarado */
       const meta       = inst.metadata || {};
       const createData = meta.create?.data || meta.data || {};
       const token      = createData.token || createData.apikey || '—';
-      document.getElementById('is-token').textContent = token;
+      document.getElementById('is-token').dataset.raw     = token;
+      document.getElementById('is-token').dataset.visible = '0';
+      document.getElementById('is-token').textContent     = token !== '—' ? '•'.repeat(Math.min(token.length, 24)) : '—';
 
       /* Número e nome do perfil (se disponíveis nos metadados) */
       const profileName = createData.profileName || createData.name || '—';
@@ -4125,6 +4255,9 @@
       /* Buscar status real via API (sem cache) */
       _fetchLiveStatus(name);
 
+      /* Carregar e popular webhook + avançadas */
+      loadInstanceSettings(name);
+
       /* Admin: seção de atribuição de dono */
       if (_isAdmin) {
         const assignAlert = document.getElementById('is-assign-alert');
@@ -4153,6 +4286,130 @@
         document.querySelector('.bottom-nav').style.display = '';
         showPanel('panel-list', null, 'bnav-list', 'snav-list');
       }, 195);
+    }
+
+    /* ── Toggle visibilidade do token ──────────────────────────────── */
+    function toggleTokenReveal() {
+      const el = document.getElementById('is-token');
+      const raw = el.dataset.raw || '—';
+      if (el.dataset.visible === '1') {
+        el.textContent = raw !== '—' ? '•'.repeat(Math.min(raw.length, 24)) : '—';
+        el.dataset.visible = '0';
+      } else {
+        el.textContent = raw;
+        el.dataset.visible = '1';
+      }
+    }
+
+    /* ── Carrega configurações (webhook + avançadas) da instância ─── */
+    const _WH_EVENTS = ['ALL','MESSAGE','READ_RECEIPT','PRESENCE','HISTORY_SYNC','CHAT_PRESENCE','CALL','CONNECTION','QRCODE','LABEL','CONTACT','GROUP','NEWSLETTER'];
+
+    async function loadInstanceSettings(name) {
+      /* Renderizar checkboxes de eventos */
+      const evContainer = document.getElementById('is-webhook-events');
+      evContainer.innerHTML = _WH_EVENTS.map(ev =>
+        `<label class="wh-event-label"><input type="checkbox" data-ev="${ev}"> ${ev}</label>`
+      ).join('');
+
+      /* Limpar alertas */
+      ['is-webhook-alert','is-advanced-alert'].forEach(id => {
+        const el = document.getElementById(id);
+        el.className = 'alert'; el.textContent = '';
+      });
+
+      /* Wire save buttons */
+      document.getElementById('is-btn-save-webhook').onclick  = () => saveWebhook(name);
+      document.getElementById('is-btn-save-advanced').onclick = () => saveAdvanced(name);
+
+      try {
+        const res  = await fetch(`/api/instances/${encodeURIComponent(name)}/settings`, { headers: getAuthHeaders() });
+        const json = await res.json();
+        if (!json.success) return;
+
+        /* Popular Webhook */
+        const wh = json.webhook || {};
+        document.getElementById('is-webhook-url').value       = wh.url       || '';
+        document.getElementById('is-webhook-rabbitmq').value  = wh.rabbitmq  || 'default';
+        document.getElementById('is-webhook-websocket').value = wh.websocket || 'default';
+        document.getElementById('is-webhook-nats').value      = wh.nats      || 'default';
+        const savedEvents = Array.isArray(wh.events) ? wh.events : [];
+        evContainer.querySelectorAll('input[type=checkbox]').forEach(cb => {
+          cb.checked = savedEvents.includes(cb.dataset.ev);
+        });
+
+        /* Popular Avançadas */
+        const adv = json.advanced || {};
+        document.getElementById('is-adv-always-online').checked  = !!adv.alwaysOnline;
+        document.getElementById('is-adv-reject-call').checked    = !!adv.rejectCall;
+        document.getElementById('is-adv-read-messages').checked  = !!adv.readMessages;
+        document.getElementById('is-adv-ignore-groups').checked  = !!adv.ignoreGroups;
+        document.getElementById('is-adv-ignore-status').checked  = !!adv.ignoreStatus;
+      } catch { /* silencioso — primeiro acesso não tem dados */ }
+    }
+
+    /* ── Salvar configurações de Webhook ───────────────────────────── */
+    async function saveWebhook(name) {
+      const alertEl = document.getElementById('is-webhook-alert');
+      const btn     = document.getElementById('is-btn-save-webhook');
+      alertEl.className = 'alert'; alertEl.textContent = '';
+      btn.disabled = true; btn.textContent = 'Salvando…';
+
+      const checkedEvents = [];
+      document.querySelectorAll('#is-webhook-events input[type=checkbox]:checked').forEach(cb => {
+        checkedEvents.push(cb.dataset.ev);
+      });
+
+      try {
+        const res  = await fetch(`/api/instances/${encodeURIComponent(name)}/webhook`, {
+          method:  'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            url:       document.getElementById('is-webhook-url').value.trim(),
+            events:    checkedEvents,
+            rabbitmq:  document.getElementById('is-webhook-rabbitmq').value,
+            websocket: document.getElementById('is-webhook-websocket').value,
+            nats:      document.getElementById('is-webhook-nats').value,
+          }),
+        });
+        const json = await res.json();
+        alertEl.className = json.success ? 'alert alert-success' : 'alert alert-error';
+        alertEl.textContent = json.success ? '✅ Webhook salvo com sucesso.' : (json.error || 'Erro ao salvar.');
+      } catch {
+        alertEl.className = 'alert alert-error';
+        alertEl.textContent = 'Erro de conexão.';
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 Salvar Webhook';
+      }
+    }
+
+    /* ── Salvar configurações Avançadas ────────────────────────────── */
+    async function saveAdvanced(name) {
+      const alertEl = document.getElementById('is-advanced-alert');
+      const btn     = document.getElementById('is-btn-save-advanced');
+      alertEl.className = 'alert'; alertEl.textContent = '';
+      btn.disabled = true; btn.textContent = 'Salvando…';
+
+      try {
+        const res  = await fetch(`/api/instances/${encodeURIComponent(name)}/advanced`, {
+          method:  'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            alwaysOnline:  document.getElementById('is-adv-always-online').checked,
+            rejectCall:    document.getElementById('is-adv-reject-call').checked,
+            readMessages:  document.getElementById('is-adv-read-messages').checked,
+            ignoreGroups:  document.getElementById('is-adv-ignore-groups').checked,
+            ignoreStatus:  document.getElementById('is-adv-ignore-status').checked,
+          }),
+        });
+        const json = await res.json();
+        alertEl.className = json.success ? 'alert alert-success' : 'alert alert-error';
+        alertEl.textContent = json.success ? '✅ Configurações salvas.' : (json.error || 'Erro ao salvar.');
+      } catch {
+        alertEl.className = 'alert alert-error';
+        alertEl.textContent = 'Erro de conexão.';
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 Salvar Avançadas';
+      }
     }
 
     /* ── Carrega usuários no select de atribuição ─────────────────── */
