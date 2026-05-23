@@ -97,13 +97,18 @@ function extractInstanceToken(meta: Record<string, unknown>): string {
 }
 
 /* ── Helper: resolve config EvoAI CRM (global — tabela system_config) ── */
+/* Remove qualquer caractere fora do intervalo ASCII imprimível (32–126) */
+function sanitizeHeaderValue(s: string): string {
+  return s.replace(/[^\x20-\x7E]/g, '').trim();
+}
+
 async function getEvoCRMConfig(): Promise<{ url: string; token: string } | null> {
   const { data } = await supabaseAdmin
     .from('system_config')
     .select('key, value')
     .in('key', ['evo_crm_url', 'evo_crm_token']);
   const url   = (data as { key: string; value: string }[] | null)?.find(r => r.key === 'evo_crm_url')?.value?.trim()   || '';
-  const token = (data as { key: string; value: string }[] | null)?.find(r => r.key === 'evo_crm_token')?.value?.trim() || '';
+  const token = sanitizeHeaderValue((data as { key: string; value: string }[] | null)?.find(r => r.key === 'evo_crm_token')?.value || '');
   if (!url || !token) return null;
   return { url, token };
 }
@@ -1484,14 +1489,14 @@ app.get('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res)
 app.post('/api/admin/crm/test-token', requireAuth, requireAdmin, async (req, res) => {
   const { url, token } = req.body as { url?: string; token?: string };
   const cleanUrl   = url?.trim() || '';
-  let   cleanToken = token?.trim() || '';
+  let   cleanToken = sanitizeHeaderValue(token || '');
   if (!cleanUrl) {
     res.status(400).json({ success: false, error: 'URL é obrigatória para o teste.' }); return;
   }
   /* token não enviado → tentar usar o salvo no banco */
   if (!cleanToken) {
     const { data } = await supabaseAdmin.from('system_config').select('value').eq('key', 'evo_crm_token').single();
-    cleanToken = (data as any)?.value?.trim() || '';
+    cleanToken = sanitizeHeaderValue((data as any)?.value || '');
     if (!cleanToken) {
       res.status(400).json({ success: false, error: 'Token não encontrado. Salve o token antes de testar.' }); return;
     }
@@ -1679,8 +1684,8 @@ app.post('/api/admin/crm/products/:productId/variants', requireAuth, requireAdmi
 /* ── Salvar config EvoAI CRM ────────────────────────────────────── */
 app.post('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res) => {
   const { url, token } = req.body as { url?: string; token?: string };
-  const cleanUrl   = url?.trim()   || '';
-  const cleanToken = token?.trim() || '';
+  const cleanUrl   = url?.trim()              || '';
+  const cleanToken = sanitizeHeaderValue(token || '');
   if (!cleanUrl) {
     res.status(400).json({ success: false, error: 'URL do EvoAI CRM é obrigatória.' }); return;
   }
