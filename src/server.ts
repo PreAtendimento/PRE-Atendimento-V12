@@ -1500,25 +1500,30 @@ app.post('/api/admin/crm/test-token', requireAuth, requireAdmin, async (req, res
     res.status(400).json({ success: false, error: 'URL inválida.' }); return;
   }
   try {
-    const testUrl = `${cleanUrl.replace(/\/$/, '')}/api/v1/products?page=1&per_page=1`;
+    const testUrl = `${cleanUrl.replace(/\/$/, '')}/api/v1/profile`;
     console.log(`[EVO CRM] TEST ${testUrl}`);
     const r = await fetch(testUrl, {
-      headers: { 'api_access_token': cleanToken },
-      signal : AbortSignal.timeout(8000),
+      headers : { 'api_access_token': cleanToken },
+      signal  : AbortSignal.timeout(8000),
+      redirect: 'follow',
     });
-    const raw = await r.text();
-    const isHtml = raw.trimStart().startsWith('<');
+    const raw        = await r.text();
+    const isHtml     = raw.trimStart().startsWith('<');
+    const redirected = r.redirected ? ` (redirecionado para ${r.url})` : '';
+    console.log(`[EVO CRM] TEST response: HTTP ${r.status}${redirected}, isHtml=${isHtml}, preview=${raw.slice(0,120)}`);
     if (r.status === 401 || r.status === 403) {
       res.json({ success: false, error: `Token inválido ou sem permissão (HTTP ${r.status}).` }); return;
     }
     if (!r.ok) {
-      const msg = isHtml ? `HTTP ${r.status} — resposta HTML (URL incorreta?)` : (() => { try { return (JSON.parse(raw) as any)?.message || `HTTP ${r.status}`; } catch { return `HTTP ${r.status}`; } })();
+      const jsonMsg = (() => { try { return (JSON.parse(raw) as any)?.message; } catch { return null; } })();
+      const msg = jsonMsg || (isHtml ? `HTTP ${r.status} — servidor retornou HTML${redirected}. Verifique a URL.` : `HTTP ${r.status}`);
       res.json({ success: false, error: msg }); return;
     }
     if (isHtml) {
-      res.json({ success: false, error: 'Servidor retornou HTML. Verifique a URL do CRM.' }); return;
+      res.json({ success: false, error: `Servidor retornou HTML (HTTP ${r.status})${redirected}. Verifique a URL do CRM.` }); return;
     }
-    res.json({ success: true, message: 'Conexão bem-sucedida! Token e URL válidos.' });
+    /* tenta também /api/v1/products como fallback de confirmação */
+    res.json({ success: true, message: `Conexão bem-sucedida! Token e URL válidos. (HTTP ${r.status})` });
   } catch (err: unknown) {
     const msg = (err as any)?.name === 'TimeoutError' ? 'Tempo limite excedido (8s). Verifique a URL.' : (err as Error).message;
     res.json({ success: false, error: msg });
