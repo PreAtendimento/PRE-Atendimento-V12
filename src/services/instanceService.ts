@@ -53,16 +53,22 @@ async function getInstanceMeta(
   if (!inst?.metadata) return { uuid: '', token: '', found: !!inst };
   const meta = inst.metadata as Record<string, unknown>;
 
+  /* Tentar ler UUID de create.data primeiro */
   const newData = (meta.create as Record<string, unknown> | undefined)
     ?.data as Record<string, unknown> | undefined;
-  if (newData?.id) {
-    return { uuid: String(newData.id), token: String(newData.token || ''), found: true };
-  }
-
   const oldData = meta.data as Record<string, unknown> | undefined;
-  if (oldData?.id) {
-    return { uuid: String(oldData.id), token: String(oldData.token || ''), found: true };
-  }
+
+  const uuid =
+    (newData?.id  as string | undefined) ||
+    (oldData?.id  as string | undefined) || '';
+
+  /* Token: primeiro tenta campo de topo (salvo explicitamente), depois os aninhados */
+  const token =
+    (meta.token   as string | undefined) ||
+    (newData?.token as string | undefined) ||
+    (oldData?.token as string | undefined) || '';
+
+  if (uuid || token) return { uuid, token, found: true };
 
   return { uuid: '', token: '', found: true };
 }
@@ -127,6 +133,7 @@ export async function createInstanceAndPersist(
       metadata: {
         create:  createResult.data  ?? null,
         connect: connectResult?.data ?? null,
+        token:   instanceToken       || null,
       },
     })
     .select()
