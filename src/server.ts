@@ -210,10 +210,26 @@ app.get('/api/admin/embed-token', requireAuth, async (req, res) => {
       name    : user.name,
       tenantId: user.tenantId,
     });
-    const host     = req.headers['x-forwarded-host'] || req.headers.host || '';
-    const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-    const baseUrl  = `${protocol}://${host}`;
-    res.json({ success: true, token, embedUrl: `${baseUrl}/embed?t=${token}` });
+
+    const host         = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+    const protocol     = (req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http')) as string;
+    const requestBase  = `${protocol}://${host}`;
+    const publicAppUrl = (process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
+
+    /* Preferir PUBLIC_APP_URL se estiver configurado com domínio diferente de replit.dev */
+    const isDevDomain  = host.includes('replit.dev') || host.includes('janeway') || host.includes('riker');
+    const baseUrl      = (publicAppUrl && !publicAppUrl.includes('replit.dev')) ? publicAppUrl : requestBase;
+    const embedUrl     = `${baseUrl}/embed?t=${token}`;
+
+    res.json({
+      success   : true,
+      token,
+      embedUrl,
+      isDevDomain: isDevDomain && !publicAppUrl,
+      warning   : (isDevDomain && !publicAppUrl)
+        ? 'URL gerada a partir do ambiente de desenvolvimento. Acesse o app publicado (.replit.app) para gerar um link embeddável.'
+        : null,
+    });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }

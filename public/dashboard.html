@@ -3282,6 +3282,7 @@
                     📋 Copiar
                   </button>
                 </div>
+                <div id="embed-link-warn" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:0.4rem;font-size:0.75rem;color:#f87171;line-height:1.5"></div>
                 <div style="margin-top:0.4rem;font-size:0.72rem;color:var(--tx4)">⏳ Válido por 30 dias. Cole como URL da "Nova Aplicação" no seu CRM.</div>
               </div>
             </div>
@@ -5713,9 +5714,10 @@
 
     /* ── Gerar Link de Embed ─────────────────────────────────────── */
     async function generateEmbedLink() {
-      const btn  = document.getElementById('btn-gen-embed');
-      const wrap = document.getElementById('embed-link-wrap');
-      const inp  = document.getElementById('embed-link-input');
+      const btn     = document.getElementById('btn-gen-embed');
+      const wrap    = document.getElementById('embed-link-wrap');
+      const inp     = document.getElementById('embed-link-input');
+      const warnEl  = document.getElementById('embed-link-warn');
       if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando…'; }
       try {
         const res  = await fetch('/api/admin/embed-token', { headers: getAuthHeaders() });
@@ -5723,7 +5725,19 @@
         if (json.success && json.embedUrl) {
           if (inp)  inp.value          = json.embedUrl;
           if (wrap) wrap.style.display = '';
-          showToast('✅ Link de embed gerado! Cole no seu CRM.', 'ok');
+          if (warnEl) {
+            if (json.warning) {
+              warnEl.textContent   = '⚠️ ' + json.warning;
+              warnEl.style.display = '';
+            } else {
+              warnEl.style.display = 'none';
+            }
+          }
+          if (json.warning) {
+            showToast('⚠️ Link gerado, mas leia o aviso abaixo!', 'err');
+          } else {
+            showToast('✅ Link de embed gerado! Cole no seu CRM.', 'ok');
+          }
         } else {
           showToast(`❌ ${json.error || 'Falha ao gerar link.'}`, 'err');
         }
