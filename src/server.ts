@@ -1403,15 +1403,58 @@ app.put('/api/catalog/items/:id', requireAuth, async (req, res) => {
 
 /* ── Excluir Item ───────────────────────────────────────────────── */
 app.delete('/api/catalog/items/:id', requireAuth, async (req, res) => {
-  const { id } = req.params;
+  const { id }  = req.params;
   const user    = req.user!;
   const isAdmin = user.role === 'admin';
   try {
+    /* ── 1. Buscar CRM ID antes de deletar ── */
+    let fetchQ = supabaseAdmin
+      .from('catalog_items')
+      .select('id, meta_product_id')
+      .eq('id', id);
+    if (!isAdmin) fetchQ = fetchQ.eq('created_by', user.userId);
+    const { data: existing } = await fetchQ.maybeSingle();
+
+    /* ── 2. Deletar no Supabase ── */
     let q = supabaseAdmin.from('catalog_items').delete().eq('id', id);
     if (!isAdmin) q = q.eq('created_by', user.userId);
     const { error } = await q;
     if (error) { res.status(404).json({ success: false, error: error.message }); return; }
-    res.json({ success: true });
+
+    /* ── 3. Deletar no EvoAI CRM (se tiver CRM ID) ── */
+    let crmDeleted = false;
+    let crmWarning: string | undefined;
+    const crmId    = existing?.meta_product_id;
+    if (crmId) {
+      const crmCfg = await getEvoCRMConfig();
+      if (crmCfg) {
+        try {
+          const delUrl = `${crmCfg.url.replace(/\/$/, '')}/api/v1/products/${crmId}`;
+          console.log(`[EVO CRM] DELETE ${delUrl}`);
+          const delRes = await fetch(delUrl, {
+            method : 'DELETE',
+            headers: { 'api_access_token': crmCfg.token },
+          });
+          console.log(`[EVO CRM] DELETE response: ${delRes.status}`);
+          if (delRes.ok || delRes.status === 404) {
+            crmDeleted = true;
+          } else {
+            const delJson = await delRes.json().catch(() => ({})) as Record<string, unknown>;
+            crmWarning = (delJson as any)?.message || (delJson as any)?.error || `CRM respondeu ${delRes.status}.`;
+            console.warn('[EVO CRM] DELETE falhou:', crmWarning);
+          }
+        } catch (crmErr) {
+          crmWarning = 'Erro de rede ao deletar no CRM.';
+          console.warn('[EVO CRM] Exceção no DELETE:', crmErr);
+        }
+      }
+    }
+
+    res.json({
+      success    : true,
+      crm_deleted: crmDeleted,
+      ...(crmWarning ? { warning: crmWarning } : {}),
+    });
   } catch (err: unknown) {
     res.status(500).json({ success: false, error: (err as Error).message });
   }

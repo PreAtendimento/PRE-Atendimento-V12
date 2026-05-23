@@ -5701,15 +5701,29 @@
     }
 
     async function deleteItem(id, name) {
+      const it      = _catalogItems.find(x => x.id === id);
+      const hasCRM  = !!(it?.meta_product_id);
       openModal({
         icon: '🗑️', title: 'Excluir Produto',
-        desc: `O produto "${name}" será removido do banco local. Se estiver sincronizado com o EvoAI CRM, remova-o lá também manualmente.`,
+        desc: hasCRM
+          ? `O produto "${name}" será removido do banco local e do EvoAI CRM automaticamente.`
+          : `O produto "${name}" será removido do banco local.`,
         instanceName: name, btnClass: 'danger-delete', btnLabel: 'Excluir',
         onConfirm: async () => {
           const res  = await fetch(`/api/catalog/items/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
           const json = await res.json();
-          if (json.success) { showToast('✅ Produto excluído.', 'ok'); loadItems(); }
-          else showToast(`❌ ${json.error || 'Falha.'}`, 'err');
+          if (json.success) {
+            if (json.crm_deleted) {
+              showToast('✅ Produto excluído do banco e do EvoAI CRM.', 'ok');
+            } else if (json.warning) {
+              showToast(`⚠️ Removido localmente. CRM: ${json.warning}`, 'ok');
+            } else {
+              showToast('✅ Produto excluído.', 'ok');
+            }
+            loadItems();
+          } else {
+            showToast(`❌ ${json.error || 'Falha.'}`, 'err');
+          }
         },
       });
     }
