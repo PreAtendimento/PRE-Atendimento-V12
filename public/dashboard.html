@@ -5373,25 +5373,89 @@
           const kind    = kindMap[p.kind]   || p.kind   || '';
           const status  = statusMap[p.status] || p.status || '';
           const imgUrl  = p.metadata?.image_url || '';
+          const pid     = escHtml(String(p.id || ''));
           return `
-          <div style="display:flex;align-items:flex-start;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid var(--border2)">
-            ${imgUrl
-              ? `<img src="${escHtml(imgUrl)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:0.45rem;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display='none'">`
-              : `<div style="width:44px;height:44px;border-radius:0.45rem;flex-shrink:0;border:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🤖</div>`}
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:700;color:var(--tx1);font-size:0.88rem">${escHtml(p.name || '—')}${price ? ` <span style="color:#25D366;font-size:0.8rem">${price}</span>` : ''}</div>
-              ${p.description ? `<div style="font-size:0.75rem;color:var(--tx3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.description)}</div>` : ''}
-              <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.3rem">
-                ${kind   ? `<span style="font-size:0.7rem;color:var(--tx4)">${kind}</span>`   : ''}
-                ${status ? `<span style="font-size:0.7rem;color:var(--tx4)">${status}</span>` : ''}
-                ${p.sku  ? `<span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">SKU: ${escHtml(p.sku)}</span>` : ''}
-                <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace" title="CRM ID">🆔 ${escHtml(String(p.id || ''))}</span>
+          <div style="padding:0.75rem 0;border-bottom:1px solid var(--border2)">
+            <div style="display:flex;align-items:flex-start;gap:0.75rem">
+              ${imgUrl
+                ? `<img src="${escHtml(imgUrl)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:0.45rem;flex-shrink:0;border:1px solid var(--border)" onerror="this.style.display='none'">`
+                : `<div style="width:44px;height:44px;border-radius:0.45rem;flex-shrink:0;border:1px solid var(--border);background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1.2rem">🤖</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:700;color:var(--tx1);font-size:0.88rem">${escHtml(p.name || '—')}${price ? ` <span style="color:#25D366;font-size:0.8rem">${price}</span>` : ''}</div>
+                ${p.description ? `<div style="font-size:0.75rem;color:var(--tx3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(p.description)}</div>` : ''}
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:0.4rem;margin-top:0.3rem">
+                  ${kind   ? `<span style="font-size:0.7rem;color:var(--tx4)">${kind}</span>`   : ''}
+                  ${status ? `<span style="font-size:0.7rem;color:var(--tx4)">${status}</span>` : ''}
+                  ${p.sku  ? `<span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">SKU: ${escHtml(p.sku)}</span>` : ''}
+                  <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace" title="CRM ID">🆔 ${pid}</span>
+                  <button onclick="toggleCRMVariants('${pid}', this)"
+                    style="font-size:0.7rem;padding:0.15rem 0.5rem;border-radius:0.35rem;border:1px solid rgba(139,92,246,0.4);color:#a78bfa;background:transparent;cursor:pointer;transition:all 0.15s"
+                    onmouseover="this.style.background='rgba(139,92,246,0.1)'" onmouseout="this.style.background='transparent'">
+                    🔀 Variantes
+                  </button>
+                </div>
               </div>
             </div>
+            <div id="crm-variants-${pid}" style="display:none;margin-top:0.6rem;margin-left:52px"></div>
           </div>`;
         }).join('');
       } catch (e) {
         listEl.innerHTML = `<div class="empty-state" style="padding:1rem 0"><div class="empty-icon" style="font-size:1.3rem">❌</div>Erro de conexão com o CRM.</div>`;
+      }
+    }
+
+    /* ── Toggle Variantes de um produto CRM ──────────────────────── */
+    async function toggleCRMVariants(productId, btnEl) {
+      const panel = document.getElementById(`crm-variants-${productId}`);
+      if (!panel) return;
+      const isOpen = panel.style.display !== 'none';
+      if (isOpen) {
+        panel.style.display = 'none';
+        btnEl.textContent   = '🔀 Variantes';
+        return;
+      }
+      panel.style.display = 'block';
+      btnEl.textContent   = '⏳ Carregando…';
+      btnEl.disabled      = true;
+      try {
+        const res  = await fetch(`/api/admin/crm/products/${productId}/variants`, { headers: getAuthHeaders() });
+        const json = await res.json();
+        if (!json.success) {
+          panel.innerHTML   = `<div style="font-size:0.75rem;color:#f87171;padding:0.4rem 0">❌ ${escHtml(json.error || 'Erro ao buscar variantes.')}</div>`;
+          btnEl.textContent = '🔀 Variantes';
+          btnEl.disabled    = false;
+          return;
+        }
+        const raw      = json.data;
+        const variants = Array.isArray(raw) ? raw : (raw?.data || raw?.variants || raw?.items || []);
+        if (!variants.length) {
+          panel.innerHTML = `<div style="font-size:0.75rem;color:var(--tx4);padding:0.4rem 0;font-style:italic">Nenhuma variante cadastrada.</div>`;
+          btnEl.textContent = '🔀 Variantes (0)';
+          btnEl.disabled    = false;
+          return;
+        }
+        panel.innerHTML = `
+          <div style="border:1px solid var(--border);border-radius:0.5rem;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1fr 80px 80px auto;background:var(--bg);padding:0.35rem 0.75rem;border-bottom:1px solid var(--border);gap:0.5rem">
+              <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase">Nome</span>
+              <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase;text-align:right">Preço</span>
+              <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase;text-align:right">Estoque</span>
+              <span style="font-size:0.7rem;font-weight:600;color:var(--tx3);text-transform:uppercase">SKU</span>
+            </div>
+            ${variants.map((v, i) => `
+              <div style="display:grid;grid-template-columns:1fr 80px 80px auto;padding:0.4rem 0.75rem;gap:0.5rem;align-items:center${i < variants.length - 1 ? ';border-bottom:1px solid var(--border2)' : ''}">
+                <span style="font-size:0.78rem;color:var(--tx1);font-weight:600">${escHtml(v.name || '—')}</span>
+                <span style="font-size:0.75rem;color:#25D366;text-align:right">${v.price_override != null ? 'R$ ' + parseFloat(v.price_override).toFixed(2).replace('.',',') : '—'}</span>
+                <span style="font-size:0.75rem;color:var(--tx3);text-align:right">${v.stock_quantity != null ? v.stock_quantity : '—'}</span>
+                <span style="font-size:0.7rem;color:var(--tx4);font-family:monospace">${v.sku ? escHtml(v.sku) : '—'}</span>
+              </div>`).join('')}
+          </div>`;
+        btnEl.textContent = `🔀 Variantes (${variants.length})`;
+        btnEl.disabled    = false;
+      } catch {
+        panel.innerHTML   = `<div style="font-size:0.75rem;color:#f87171;padding:0.4rem 0">❌ Erro de conexão.</div>`;
+        btnEl.textContent = '🔀 Variantes';
+        btnEl.disabled    = false;
       }
     }
 
