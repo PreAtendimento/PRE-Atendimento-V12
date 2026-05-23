@@ -3260,10 +3260,16 @@
               Documentação: <a href="https://docs.evolutionfoundation.com.br/evo-ai-crm/create-product" target="_blank" style="color:#3b82f6">docs.evolutionfoundation.com.br</a>
             </div>
 
+            <div id="crm-test-result" style="display:none;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:0.55rem;font-size:0.82rem;font-weight:500"></div>
+
             <div style="display:flex;gap:0.75rem">
               <button class="btn" onclick="saveCRMConfig()"
                 style="flex:1;background:linear-gradient(135deg,#0891b2,#0e7490);box-shadow:0 3px 10px rgba(8,145,178,0.3)">
                 💾 Salvar Configuração
+              </button>
+              <button id="btn-test-crm" class="btn" onclick="testCRMToken()"
+                style="padding:0 1.1rem;background:linear-gradient(135deg,#7c3aed,#8b5cf6);box-shadow:0 3px 10px rgba(139,92,246,0.3)">
+                🔌 Testar Token
               </button>
               <button class="btn" onclick="loadCRMConfig()"
                 style="padding:0 1rem;background:transparent;border:1px solid var(--border);color:var(--tx3);font-size:0.82rem">
@@ -5678,6 +5684,50 @@
         panel.innerHTML   = `<div style="font-size:0.75rem;color:#f87171;padding:0.4rem 0">❌ Erro de conexão.</div>`;
         btnEl.textContent = '🔀 Variantes';
         btnEl.disabled    = false;
+      }
+    }
+
+    /* ── Testar Token EvoAI CRM ───────────────────────────────────── */
+    async function testCRMToken() {
+      const url        = document.getElementById('crm-url').value.trim();
+      const token      = document.getElementById('crm-token').value.trim();
+      const tokenSaved = document.getElementById('crm-token').placeholder.includes('salvo');
+      const resultEl   = document.getElementById('crm-test-result');
+      const btn        = document.getElementById('btn-test-crm');
+      if (!url) { showToast('❌ Preencha a URL do CRM antes de testar.', 'err'); return; }
+      if (!token && !tokenSaved) { showToast('❌ Preencha o token antes de testar.', 'err'); return; }
+      if (!token && tokenSaved) {
+        /* token já salvo mas não digitado no campo → usar o salvo via teste no backend */
+      }
+      btn.disabled    = true;
+      btn.textContent = '⏳ Testando…';
+      if (resultEl) resultEl.style.display = 'none';
+      try {
+        const body = token ? { url, token } : { url };
+        const res  = await fetch('/api/admin/crm/test-token', {
+          method : 'POST',
+          headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+          body   : JSON.stringify(body),
+        });
+        const json = await res.json();
+        if (resultEl) {
+          resultEl.style.display = '';
+          if (json.success) {
+            resultEl.style.cssText = 'display:block;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:0.55rem;font-size:0.82rem;font-weight:500;background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.35);color:#10b981';
+            resultEl.textContent   = '✅ ' + (json.message || 'Conexão bem-sucedida!');
+          } else {
+            resultEl.style.cssText = 'display:block;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:0.55rem;font-size:0.82rem;font-weight:500;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.35);color:#f87171';
+            resultEl.textContent   = '❌ ' + (json.error || 'Falha na conexão.');
+          }
+        }
+      } catch {
+        if (resultEl) {
+          resultEl.style.cssText = 'display:block;margin-bottom:0.75rem;padding:0.6rem 0.9rem;border-radius:0.55rem;font-size:0.82rem;font-weight:500;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.35);color:#f87171';
+          resultEl.textContent   = '❌ Erro de conexão com o servidor.';
+        }
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = '🔌 Testar Token';
       }
     }
 

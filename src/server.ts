@@ -1480,6 +1480,51 @@ app.get('/api/admin/config/evo-crm', requireAuth, requireAdmin, async (req, res)
   }
 });
 
+/* ── Testar token EvoAI CRM ─────────────────────────────────────── */
+app.post('/api/admin/crm/test-token', requireAuth, requireAdmin, async (req, res) => {
+  const { url, token } = req.body as { url?: string; token?: string };
+  const cleanUrl   = url?.trim() || '';
+  let   cleanToken = token?.trim() || '';
+  if (!cleanUrl) {
+    res.status(400).json({ success: false, error: 'URL é obrigatória para o teste.' }); return;
+  }
+  /* token não enviado → tentar usar o salvo no banco */
+  if (!cleanToken) {
+    const { data } = await supabaseAdmin.from('system_config').select('value').eq('key', 'evo_crm_token').single();
+    cleanToken = (data as any)?.value?.trim() || '';
+    if (!cleanToken) {
+      res.status(400).json({ success: false, error: 'Token não encontrado. Salve o token antes de testar.' }); return;
+    }
+  }
+  try { new URL(cleanUrl); } catch {
+    res.status(400).json({ success: false, error: 'URL inválida.' }); return;
+  }
+  try {
+    const testUrl = `${cleanUrl.replace(/\/$/, '')}/api/v1/products?page=1&per_page=1`;
+    console.log(`[EVO CRM] TEST ${testUrl}`);
+    const r = await fetch(testUrl, {
+      headers: { 'api_access_token': cleanToken },
+      signal : AbortSignal.timeout(8000),
+    });
+    const raw = await r.text();
+    const isHtml = raw.trimStart().startsWith('<');
+    if (r.status === 401 || r.status === 403) {
+      res.json({ success: false, error: `Token inválido ou sem permissão (HTTP ${r.status}).` }); return;
+    }
+    if (!r.ok) {
+      const msg = isHtml ? `HTTP ${r.status} — resposta HTML (URL incorreta?)` : (() => { try { return (JSON.parse(raw) as any)?.message || `HTTP ${r.status}`; } catch { return `HTTP ${r.status}`; } })();
+      res.json({ success: false, error: msg }); return;
+    }
+    if (isHtml) {
+      res.json({ success: false, error: 'Servidor retornou HTML. Verifique a URL do CRM.' }); return;
+    }
+    res.json({ success: true, message: 'Conexão bem-sucedida! Token e URL válidos.' });
+  } catch (err: unknown) {
+    const msg = (err as any)?.name === 'TimeoutError' ? 'Tempo limite excedido (8s). Verifique a URL.' : (err as Error).message;
+    res.json({ success: false, error: msg });
+  }
+});
+
 /* ── Helper: parse seguro de resposta do CRM (aceita HTML sem travar) */
 async function safeJsonCRM(r: globalThis.Response): Promise<{ ok: boolean; status: number; body: Record<string, unknown>; raw: string }> {
   const raw = await r.text();
