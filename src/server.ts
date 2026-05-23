@@ -200,7 +200,7 @@ window.location.replace('/dashboard.html');
 });
 
 /* ── Gerar token de embed (30 dias) ────────────────────────────────── */
-app.get('/api/admin/embed-token', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/embed-token', requireAuth, async (req, res) => {
   try {
     const user  = req.user!;
     const token = signEmbedToken({
