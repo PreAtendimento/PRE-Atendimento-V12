@@ -895,9 +895,9 @@ app.post('/api/instances/:name/webhook', requireAuth, async (req, res) => {
         await connectInstance(instanceToken, _evo.url, {
           webhookUrl:      url || '',
           subscribe:       events || [],
-          rabbitmqEnable:  rabbitmq  === 'enabled' ? 'true' : rabbitmq  === 'disabled' ? 'false' : '',
-          websocketEnable: websocket === 'enabled' ? 'true' : websocket === 'disabled' ? 'false' : '',
-          natsEnable:      nats      === 'enabled' ? 'true' : nats      === 'disabled' ? 'false' : '',
+          rabbitmqEnable:  rabbitmq  === 'enabled' ? 'enabled' : rabbitmq  === 'disabled' ? 'disabled' : '',
+          websocketEnable: websocket === 'enabled' ? 'enabled' : websocket === 'disabled' ? 'disabled' : '',
+          natsEnable:      nats      === 'enabled' ? 'enabled' : nats      === 'disabled' ? 'disabled' : '',
         });
       } catch (evoErr) {
         console.warn('[Webhook] EvoGo connect falhou (salvo localmente):', (evoErr as Error).message);
@@ -942,23 +942,30 @@ app.post('/api/instances/:name/advanced', requireAuth, async (req, res) => {
     const { error: upErr } = await upQuery;
     if (upErr) { res.status(500).json({ success: false, error: upErr.message }); return; }
 
-    /* Chamar EvoGo: PUT /instance/{uuid}/advanced-settings */
+    /* Chamar EvoGo: PUT /instance/{uuid}/advanced-settings
+       Auth: token da instância (não GLOBAL_API_KEY) */
     const createData = (meta.create as Record<string, unknown>)?.data as Record<string, unknown> | undefined
                     || (meta.data as Record<string, unknown> | undefined);
-    const instanceUuid = (createData?.id as string) || '';
-    if (instanceUuid) {
+    const instanceUuid  = (createData?.id    as string) || '';
+    const instanceToken = (createData?.token as string) || '';
+    if (instanceUuid && instanceToken) {
       try {
         const _evo = await getEvoGoConfig();
-        await updateAdvancedSettings(instanceUuid, {
+        const advResult = await updateAdvancedSettings(instanceUuid, {
           alwaysOnline:  !!alwaysOnline,
           rejectCall:    !!rejectCall,
           readMessages:  !!readMessages,
           ignoreGroups:  !!ignoreGroups,
           ignoreStatus:  !!ignoreStatus,
-        }, _evo.url, _evo.key);
+        }, _evo.url, instanceToken);
+        if (!advResult.success) {
+          console.warn('[Advanced] EvoGo retornou erro:', advResult.error);
+        }
       } catch (evoErr) {
         console.warn('[Advanced] EvoGo update falhou (salvo localmente):', (evoErr as Error).message);
       }
+    } else {
+      console.warn('[Advanced] UUID ou token da instância não encontrado no metadata — apenas Supabase atualizado.');
     }
 
     res.json({ success: true });
