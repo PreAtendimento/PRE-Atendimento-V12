@@ -4372,10 +4372,10 @@
           }),
         });
         const json = await res.json();
-        alertEl.className = json.success ? 'alert alert-success' : 'alert alert-error';
+        alertEl.className = json.success ? 'alert success' : 'alert error';
         alertEl.textContent = json.success ? '✅ Webhook salvo com sucesso.' : (json.error || 'Erro ao salvar.');
       } catch {
-        alertEl.className = 'alert alert-error';
+        alertEl.className = 'alert error';
         alertEl.textContent = 'Erro de conexão.';
       } finally {
         btn.disabled = false; btn.textContent = '💾 Salvar Webhook';
@@ -4402,10 +4402,10 @@
           }),
         });
         const json = await res.json();
-        alertEl.className = json.success ? 'alert alert-success' : 'alert alert-error';
+        alertEl.className = json.success ? 'alert success' : 'alert error';
         alertEl.textContent = json.success ? '✅ Configurações salvas.' : (json.error || 'Erro ao salvar.');
       } catch {
-        alertEl.className = 'alert alert-error';
+        alertEl.className = 'alert error';
         alertEl.textContent = 'Erro de conexão.';
       } finally {
         btn.disabled = false; btn.textContent = '💾 Salvar Avançadas';
