@@ -1,0 +1,1 @@
+- [Supabase-to-pg migration](supabase-pg-migration.md) — replaced Supabase SDK with a pg query-builder shim; Supabase keys are now optional (only for password-reset emails).

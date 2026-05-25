@@ -1,6 +1,6 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
-import { supabaseAdmin, supabaseClient } from './supabase.js';
+import { supabaseAdmin } from './supabase.js';
 
 interface UserRow {
   id: string;
@@ -16,8 +16,8 @@ interface UserRow {
 
 function getClient() {
   return new pg.Client({
-    connectionString: process.env.SUPABASE_POSTGRES_URL,
-    ssl: { rejectUnauthorized: false },
+    connectionString: process.env.DATABASE_URL,
+    ssl: (process.env.DATABASE_URL || '').includes('localhost') ? false : { rejectUnauthorized: false },
   });
 }
 
@@ -87,7 +87,6 @@ export async function registerUser(
       return { success: false, error: 'Já existe uma conta com este e-mail.' };
     }
 
-    /* Se não foi passado tenant_id, usar o tenant "default" */
     let resolvedTenantId = tenantId || null;
     if (!resolvedTenantId) {
       const { rows: tenantRows } = await client.query<{ id: string }>(
@@ -121,15 +120,12 @@ export async function registerUser(
   }
 }
 
-/* ── Recuperação de senha ────────────────────────────────────────────── */
-
 export async function requestPasswordReset(
   email: string,
   redirectTo: string,
 ): Promise<{ success: boolean; error?: string }> {
   const normalizedEmail = email.toLowerCase().trim();
 
-  /* 1. Verificar se o e-mail existe na nossa tabela de usuários */
   const client = getClient();
   try {
     await client.connect();
@@ -137,16 +133,14 @@ export async function requestPasswordReset(
       'SELECT id FROM public.users WHERE email = $1 LIMIT 1',
       [normalizedEmail],
     );
-    /* Não revelar se o e-mail existe — retornar sucesso genérico */
     if (!rows.length) {
-      console.log(`[auth] requestPasswordReset: e-mail não encontrado em public.users — resposta genérica`);
+      console.log(`[auth] requestPasswordReset: e-mail não encontrado — resposta genérica`);
       return { success: true };
     }
   } finally {
     await client.end();
   }
 
-  /* 2. Tentar enviar e-mail de recuperação diretamente */
   console.log(`[auth] requestPasswordReset: chamando resetPasswordForEmail → redirectTo="${redirectTo}"`);
   const { error: resetErr } = await supabaseAdmin.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
 
@@ -157,7 +151,6 @@ export async function requestPasswordReset(
 
   console.error(`[auth] requestPasswordReset: resetPasswordForEmail error: ${resetErr.message}`);
 
-  /* Se o erro indicar que o usuário não existe em auth.users → criar e tentar novamente */
   const notFound = resetErr.message.toLowerCase().includes('not found')
     || resetErr.message.toLowerCase().includes('user not found')
     || resetErr.message.toLowerCase().includes('no user found');
@@ -171,19 +164,17 @@ export async function requestPasswordReset(
       password: tmpPassword,
     });
     if (createErr) {
-      console.error(`[auth] requestPasswordReset: falha ao criar em auth.users: ${createErr.message}`);
+      console.error(`[auth] requestPasswordReset: falha ao criar: ${createErr.message}`);
       return { success: true };
     }
-    /* Retry após criação */
     const { error: retryErr } = await supabaseAdmin.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
     if (retryErr) {
       console.error(`[auth] requestPasswordReset: retry error: ${retryErr.message}`);
     } else {
-      console.log(`[auth] requestPasswordReset: e-mail enviado com sucesso (retry) para "${normalizedEmail}"`);
+      console.log(`[auth] requestPasswordReset: e-mail enviado (retry) para "${normalizedEmail}"`);
     }
   }
 
-  /* Sempre resposta genérica */
   return { success: true };
 }
 
@@ -191,14 +182,12 @@ export async function resetPassword(
   accessToken: string,
   newPassword: string,
 ): Promise<{ success: boolean; error?: string }> {
-  /* Verificar token com Supabase e obter o email do usuário */
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(accessToken);
 
   if (error || !user?.email) {
     return { success: false, error: 'Link inválido ou expirado. Solicite um novo link.' };
   }
 
-  /* Atualizar o hash de senha na nossa tabela de usuários */
   const password_hash = await bcrypt.hash(newPassword, 10);
   const client = getClient();
   try {

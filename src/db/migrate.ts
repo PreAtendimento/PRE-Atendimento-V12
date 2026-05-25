@@ -77,34 +77,6 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
     `,
   },
   {
-    name: '005_enable_rls',
-    sql: `
-      ALTER TABLE public.instances ENABLE ROW LEVEL SECURITY;
-      ALTER TABLE public.instance_logs ENABLE ROW LEVEL SECURITY;
-
-      DO $$ BEGIN
-        CREATE POLICY "service_role_all_instances" ON public.instances
-          FOR ALL TO service_role USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      DO $$ BEGIN
-        CREATE POLICY "anon_select_instances" ON public.instances
-          FOR SELECT TO anon USING (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      DO $$ BEGIN
-        CREATE POLICY "service_role_all_logs" ON public.instance_logs
-          FOR ALL TO service_role USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      DO $$ BEGIN
-        CREATE POLICY "anon_select_logs" ON public.instance_logs
-          FOR SELECT TO anon USING (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-    `,
-  },
-  /* ── 006: Tabela de tenants (clientes/organizações) ── */
-  {
     name: '006_create_tenants_table',
     sql: `
       CREATE TABLE IF NOT EXISTS public.tenants (
@@ -117,18 +89,11 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       );
       CREATE INDEX IF NOT EXISTS idx_tenants_slug ON public.tenants (slug);
 
-      ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
-      DO $$ BEGIN
-        CREATE POLICY "service_role_all_tenants" ON public.tenants
-          FOR ALL TO service_role USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
       INSERT INTO public.tenants (name, slug)
       VALUES ('Default', 'default')
       ON CONFLICT (slug) DO NOTHING;
     `,
   },
-  /* ── 007: tenant_id em users ── */
   {
     name: '007_add_tenant_to_users',
     sql: `
@@ -142,7 +107,6 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON public.users (tenant_id);
     `,
   },
-  /* ── 008: tenant_id + created_by em instances ── */
   {
     name: '008_add_tenant_to_instances',
     sql: `
@@ -158,69 +122,15 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_instances_created_by ON public.instances (created_by);
     `,
   },
-  /* ── 009: corrigir RLS — remover acesso anônimo irrestrito ── */
-  {
-    name: '009_fix_rls_instance_isolation',
-    sql: `
-      /* ── Remover políticas permissivas que expõem dados a qualquer pessoa ── */
-      DROP POLICY IF EXISTS "anon_select_instances" ON public.instances;
-      DROP POLICY IF EXISTS "anon_select_logs"      ON public.instance_logs;
-
-      /* ── Política para authenticated: usuário só vê suas próprias instâncias ── */
-      DO $$ BEGIN
-        CREATE POLICY "owner_select_instances" ON public.instances
-          FOR SELECT TO authenticated
-          USING (created_by::text = auth.uid()::text);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      DO $$ BEGIN
-        CREATE POLICY "owner_insert_instances" ON public.instances
-          FOR INSERT TO authenticated
-          WITH CHECK (created_by::text = auth.uid()::text);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      DO $$ BEGIN
-        CREATE POLICY "owner_update_instances" ON public.instances
-          FOR UPDATE TO authenticated
-          USING (created_by::text = auth.uid()::text)
-          WITH CHECK (created_by::text = auth.uid()::text);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      DO $$ BEGIN
-        CREATE POLICY "owner_delete_instances" ON public.instances
-          FOR DELETE TO authenticated
-          USING (created_by::text = auth.uid()::text);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
-      /* ── Logs: usuário só vê logs das suas próprias instâncias ── */
-      DO $$ BEGIN
-        CREATE POLICY "owner_select_logs" ON public.instance_logs
-          FOR SELECT TO authenticated
-          USING (
-            instance_id IN (
-              SELECT id FROM public.instances
-              WHERE created_by::text = auth.uid()::text
-            )
-          );
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-    `,
-  },
-  /* ── 010: coluna provider em instances ── */
   {
     name: '010_add_provider_to_instances',
     sql: `
       ALTER TABLE public.instances
         ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'evo-go';
 
-      UPDATE public.instances
-      SET provider = 'evolution-api'
-      WHERE provider = 'evo-go'
-        AND metadata->>'provider' = 'evolution-api';
-
       CREATE INDEX IF NOT EXISTS idx_instances_provider ON public.instances (provider);
     `,
   },
-  /* ── 011: coluna max_instances em users ── */
   {
     name: '011_add_max_instances_to_users',
     sql: `
@@ -228,7 +138,6 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
         ADD COLUMN IF NOT EXISTS max_instances INTEGER DEFAULT NULL;
     `,
   },
-  /* ── 012: enforce limite 1–5 e default 1 para usuários existentes ── */
   {
     name: '012_enforce_user_instance_limits',
     sql: `
@@ -242,7 +151,6 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `,
   },
-  /* ── 013: catálogo — coleções ── */
   {
     name: '013_create_catalog_collections',
     sql: `
@@ -257,15 +165,8 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       );
       CREATE INDEX IF NOT EXISTS idx_catalog_collections_tenant ON public.catalog_collections (tenant_id);
       CREATE INDEX IF NOT EXISTS idx_catalog_collections_created_by ON public.catalog_collections (created_by);
-
-      ALTER TABLE public.catalog_collections ENABLE ROW LEVEL SECURITY;
-      DO $$ BEGIN
-        CREATE POLICY "service_role_all_catalog_collections" ON public.catalog_collections
-          FOR ALL TO service_role USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `,
   },
-  /* ── 014: catálogo — itens ── */
   {
     name: '014_create_catalog_items',
     sql: `
@@ -282,37 +183,62 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       );
       CREATE INDEX IF NOT EXISTS idx_catalog_items_tenant ON public.catalog_items (tenant_id);
       CREATE INDEX IF NOT EXISTS idx_catalog_items_collection ON public.catalog_items (collection_id);
-
-      ALTER TABLE public.catalog_items ENABLE ROW LEVEL SECURITY;
-      DO $$ BEGIN
-        CREATE POLICY "service_role_all_catalog_items" ON public.catalog_items
-          FOR ALL TO service_role USING (true) WITH CHECK (true);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `,
+  },
+  {
+    name: '015_add_catalog_item_extra_cols',
+    sql: `
+      ALTER TABLE public.catalog_items
+        ADD COLUMN IF NOT EXISTS currency        TEXT DEFAULT 'BRL',
+        ADD COLUMN IF NOT EXISTS availability    TEXT DEFAULT 'in stock',
+        ADD COLUMN IF NOT EXISTS image_url       TEXT,
+        ADD COLUMN IF NOT EXISTS meta_product_id TEXT;
+    `,
+  },
+  {
+    name: '016_create_system_config',
+    sql: `
+      CREATE TABLE IF NOT EXISTS public.system_config (
+        key        TEXT PRIMARY KEY,
+        value      TEXT NOT NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `,
+  },
+  {
+    name: '017_create_tenant_meta_config',
+    sql: `
+      CREATE TABLE IF NOT EXISTS public.tenant_meta_config (
+        id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id         UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
+        user_id           UUID REFERENCES public.users(id)   ON DELETE CASCADE,
+        meta_access_token TEXT,
+        meta_business_id  TEXT,
+        meta_catalog_id   TEXT,
+        meta_waba_id      TEXT,
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (tenant_id, user_id)
+      );
     `,
   },
 ];
 
 export async function runMigrations(): Promise<void> {
-  if (process.env.RUN_MIGRATIONS !== 'true') {
-    console.log('ℹ️  RUN_MIGRATIONS não habilitado — pulando migrations.');
-    return;
-  }
-
-  const connectionString = process.env.SUPABASE_POSTGRES_URL;
+  const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
-    console.error('❌ FATAL: SUPABASE_POSTGRES_URL é obrigatória para rodar migrations. Encerrando aplicação.');
+    console.error('❌ FATAL: DATABASE_URL is required for migrations.');
     process.exit(1);
   }
 
   const client = new pg.Client({
     connectionString,
-    ssl: { rejectUnauthorized: false },
+    ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Conectado ao Supabase via pooler');
+    console.log('✅ Connected to PostgreSQL');
 
     await client.query(SQL_MIGRATIONS[0].sql);
 
@@ -323,21 +249,21 @@ export async function runMigrations(): Promise<void> {
 
     for (const migration of SQL_MIGRATIONS) {
       if (applied.has(migration.name)) {
-        console.log(`⏭️  Já aplicada: ${migration.name}`);
+        console.log(`⏭️  Already applied: ${migration.name}`);
         continue;
       }
-      console.log(`🔄 Aplicando: ${migration.name}`);
+      console.log(`🔄 Applying: ${migration.name}`);
       await client.query(migration.sql);
       await client.query(
         'INSERT INTO public._migrations (name) VALUES ($1) ON CONFLICT DO NOTHING',
         [migration.name]
       );
-      console.log(`✅ Concluída: ${migration.name}`);
+      console.log(`✅ Done: ${migration.name}`);
     }
 
-    console.log('🎉 Todas as migrations aplicadas com sucesso.');
+    console.log('🎉 All migrations applied successfully.');
   } catch (err) {
-    console.error('❌ Erro nas migrations:', err);
+    console.error('❌ Migration error:', err);
     throw err;
   } finally {
     await client.end();
