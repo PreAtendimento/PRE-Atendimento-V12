@@ -1,180 +1,153 @@
-# PRE-Atendimento V9 — Replit Execution Rules
+# PRE-Atendimento — Replit Agent Rules
 
-## 🚫 REGRA PRINCIPAL (CRÍTICA)
+---
+
+## ⚠️ LEITURA OBRIGATÓRIA ANTES DE QUALQUER AÇÃO
+
+Este projeto é importado do GitHub para o Replit.  
+Leia **todas** as regras abaixo antes de fazer qualquer coisa.
+
+---
+
+## 🗄️ BANCO DE DADOS — SUPABASE EXCLUSIVO
 
 Este projeto utiliza **EXCLUSIVAMENTE SUPABASE** como banco de dados.
 
-QUALQUER tentativa de substituir isso está ERRADA.
-
----
-
-## ❌ PROIBIDO (SEM EXCEÇÃO)
-
-O Replit Agent NÃO PODE:
-
+**NUNCA:**
 - usar Replit Database
 - usar PostgreSQL interno do Replit
-- instalar `postgresql-16`
-- criar banco local (SQLite, Postgres local, etc)
-- migrar banco para qualquer outro provider
-- usar Prisma, Drizzle, Neon ou qualquer ORM alternativo
-- criar fallback de banco
+- instalar `postgresql-16` ou qualquer banco local
+- criar banco SQLite, Postgres local ou qualquer outro
+- migrar para Neon, PlanetScale, Drizzle, Prisma ou qualquer alternativa
+- criar `DATABASE_URL` apontando para banco local do Replit
+- criar fallback automático de banco
 - criar mocks de banco de dados
 - alterar estrutura de persistência
-- alterar lógica de autenticação existente
+- rodar migrations contra banco local
 
-Se tentar qualquer uma dessas ações → está incorreto.
+Qualquer tentativa de substituir o Supabase → está **incorreto**. Parar e aguardar instrução.
 
 ---
 
-## 🔐 VARIÁVEIS DE AMBIENTE OBRIGATÓRIAS
+## 🔐 SECRETS — FLUXO DE IMPORT
 
-O backend NÃO deve iniciar sem:
+Ao importar este projeto do GitHub para o Replit, as variáveis de ambiente **não existem ainda**.
 
-- SUPABASE_URL
-- SUPABASE_ANON_KEY
-- SUPABASE_SERVICE_ROLE_KEY
-- SUPABASE_POSTGRES_URL
-- SUPABASE_JWT_SECRET
-- GLOBAL_API_KEY
+**Regra:** Assumir que os secrets serão informados pelo usuário.  
+**Nunca** criar valores padrão, fallback ou mock para secrets.
 
-### Regra:
+### Secrets obrigatórios — solicitar ao usuário se ausentes:
 
-Se faltar qualquer variável:
+| Secret | Descrição | Onde encontrar no Supabase |
+|--------|-----------|---------------------------|
+| `SUPABASE_URL` | URL do projeto | Project Settings → API → Project URL |
+| `SUPABASE_DB_URL` | String de conexão Postgres (pooler) | Project Settings → Database → Connection string → URI (porta 6543) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço (server-side) | Project Settings → API → service_role |
+| `SUPABASE_ANON_KEY` | Chave pública anon | Project Settings → API → anon public |
+| `SUPABASE_JWT_SECRET` | Segredo JWT (legacy) | Project Settings → API → JWT Settings → JWT Secret |
 
+### Como solicitar:
+
+Usar `requestEnvVar` com `requestType: "secret"` para todos os ausentes de uma vez.  
+Não iniciar o servidor até que os secrets estejam presentes.
+
+### Se faltar qualquer variável:
 → PARAR execução  
-→ Mostrar erro claro  
+→ Mostrar qual variável está faltando  
 → NÃO criar fallback  
 → NÃO tentar corrigir automaticamente  
+→ Solicitar ao usuário  
 
 ---
 
-## 🧠 ARQUITETURA (NÃO ALTERAR)
+## ⚙️ PADRÃO load-env.js (OBRIGATÓRIO)
 
-Backend:
-- Node.js + Express + TypeScript
-- Arquivo principal: `src/server.ts`
+O arquivo `load-env.js` na raiz do projeto mapeia:
 
-Frontend:
-- SPA servida pelo Express
-- `public/index.html`
-- `public/dashboard.html`
+```js
+process.env.DATABASE_URL = process.env.SUPABASE_DB_URL
+```
 
-Banco:
-- Supabase PostgreSQL (pooler)
+Ele é importado como **primeiro import** em `src/server.ts`:
 
-API externa:
-- Evolution GO
-- URL configurada pelo administrador no painel (sem rota padrão)
+```ts
+import '../load-env.js';
+```
+
+Isso garante que conexões `pg` usem o Supabase via `SUPABASE_DB_URL`.  
+**Nunca remover ou alterar este arquivo.**
 
 ---
 
-## 🔒 SEGURANÇA (OBRIGATÓRIO)
+## 🏗️ ARQUITETURA (NÃO ALTERAR)
 
-Isolamento em duas camadas:
+```
+src/
+  server.ts              ← entrada principal (porta 5000)
+  services/
+    supabase.ts          ← cliente @supabase/supabase-js (MANTER)
+    authService.ts       ← auth via pg + bcrypt
+    instanceService.ts   ← lógica de instâncias WhatsApp
+    evolutionGo.ts       ← integração Evolution GO API
+  db/
+    migrate.ts           ← migrations via SUPABASE_DB_URL
 
+public/
+  index.html             ← login
+  dashboard.html         ← dashboard principal
+
+load-env.js              ← mapeamento SUPABASE_DB_URL → DATABASE_URL
+.env.example             ← documentação de variáveis
+```
+
+- Backend: Node.js + Express + TypeScript (`tsx`)
+- Banco: Supabase PostgreSQL (pooler, SSL obrigatório)
+- Auth: JWT próprio (bcrypt) + Supabase Auth para reset de senha
+- API externa: Evolution GO (configurada pelo admin no painel)
+- Porta: **5000** (obrigatória)
+
+---
+
+## 🔒 SEGURANÇA — ISOLAMENTO MULTI-TENANT
+
+Duas camadas obrigatórias em todas as queries:
 - `tenant_id`
 - `created_by`
 
 Regras:
+- Usuário comum → apenas seus próprios dados (`tenant_id` + `created_by`)
+- Admin → acesso total (sem filtro)
 
-- usuário comum → apenas seus dados
-- admin → acesso total
-
-Aplicado em:
-
-- listagem
-- criação
-- status
-- QR code
-- connect
-- disconnect
-- delete
-- purge
-
----
-
-## 🗂 ESTRUTURA DO PROJETO
-
-src/
-  server.ts
-  services/
-    evolutionGo.ts
-    instanceService.ts
-    authService.ts
-    supabase.ts
-  db/
-    migrate.ts
-    migrations/
-
-public/
-  index.html
-  dashboard.html
-
-docs/
-  evolution-go-endpoints.md
-
----
-
-## ⚙️ EXECUÇÃO
-
-Instalação:
-
-pnpm install
-
-Execução:
-
-pnpm run dev
-
-Porta obrigatória:
-
-PORT=5000
+Aplicado em: listagem, criação, status, QR code, connect, disconnect, delete, purge.
 
 ---
 
 ## 🚨 COMPORTAMENTO DO AGENT
 
-O Agent deve:
-
-- NÃO alterar layout
-- NÃO alterar frontend
-- NÃO alterar rotas
-- NÃO refatorar código
-- NÃO instalar libs desnecessárias
-- NÃO alterar `.replit`
-- NÃO rodar migrations destrutivas
-- NÃO inventar arquitetura
+O Agent **NÃO pode:**
+- Alterar layout ou frontend
+- Alterar rotas existentes
+- Refatorar código sem instrução explícita
+- Instalar bibliotecas desnecessárias
+- Alterar `.replit`
+- Rodar migrations destrutivas
+- Inventar arquitetura nova
 
 ---
 
-## 🔁 LÓGICA DE STATUS
+## 🔁 LÓGICA DE STATUS DE INSTÂNCIAS
 
-Valores válidos:
-
-- creating
-- active
-- connected
-- inactive
-- error
-
-Regra:
-
-APENAS `connected` = conectado
+Valores válidos: `creating` | `active` | `connected` | `inactive` | `error`  
+**APENAS** `connected` = instância conectada ao WhatsApp.
 
 ---
 
-## 📡 EVOLUTION GO (REGRAS)
+## 📡 EVOLUTION GO
 
-- create → usa GLOBAL_API_KEY
-- connect → usa token da instância
-- status → usa token da instância
-- qr → polling
-
-Importante:
-
-- create usa `name`
-- delete usa UUID
-- QR retorna `Qrcode` e `Code`
+- `create` → usa `GLOBAL_API_KEY`
+- `connect` / `status` / `qr` → usa token da instância
+- `delete` → usa UUID da instância
+- QR retorna campos `Qrcode` e `Code`
 
 ---
 
@@ -182,79 +155,24 @@ Importante:
 
 Se houver erro:
 
-NÃO:
-
-- mudar banco
-- criar fallback
-- trocar provider
-- alterar estrutura
-
-FAZER:
-
-1. mostrar erro
-2. indicar variável faltante
-3. aguardar instrução
+**NÃO:** mudar banco, criar fallback, trocar provider, alterar estrutura  
+**FAZER:**
+1. Mostrar o erro completo
+2. Indicar qual variável ou configuração está faltando
+3. Aguardar instrução do usuário
 
 ---
 
-## 🎯 OBJETIVO FINAL
+## 🎯 RESULTADO ESPERADO AO IMPORTAR
 
-Executar o projeto:
+1. Secrets informados pelo usuário via Replit Secrets
+2. `load-env.js` mapeia `SUPABASE_DB_URL → DATABASE_URL`
+3. `pnpm run dev` inicia o servidor na porta 5000
+4. Supabase conectado como única fonte de dados
+5. Nenhum banco local criado no Replit
 
-- com Supabase
-- sem alterações estruturais
-- sem substituições automáticas
-- mantendo comportamento original
+## User preferences
 
----
-
-## Regras críticas de banco e autenticação
-
-Este projeto NÃO deve migrar para PostgreSQL do Replit.
-
-Arquitetura oficial do projeto:
-
-- Banco principal: Supabase PostgreSQL
-- Autenticação: Supabase Auth
-- Backend: Node.js / Express
-- Configurações da Evolution API: salvas por tenant no Supabase
-
-É proibido:
-
-- Migrar banco do Supabase para Replit PostgreSQL
-- Usar PostgreSQL interno do Replit
-- Ativar módulo postgresql do Replit
-- Criar DATABASE_URL do Replit
-- Substituir Supabase Auth por autenticação própria
-- Remover Supabase Auth
-- Rodar migrations contra banco local do Replit
-- Criar tabelas locais no Replit
-- Alterar login, cadastro ou reset de senha para banco local
-
-Variáveis obrigatórias:
-
-- SUPABASE_URL
-- SUPABASE_ANON_KEY
-- SUPABASE_SERVICE_ROLE_KEY
-- PUBLIC_APP_URL
-
-Migrations:
-
-- Devem rodar somente contra o Supabase
-- Devem usar SUPABASE_SERVICE_ROLE_KEY
-- Nunca usar DATABASE_URL do Replit
-
-Deploy no Replit:
-
-- Não aceitar sugestão automática de migração para Replit PostgreSQL
-- Não executar plano automático com "Migrate the database from Supabase to Replit's PostgreSQL"
-- Não alterar o auth service para banco local
-- Apenas ajustar workflow/deploy para iniciar o app Node.js corretamente
-
-Resultado esperado:
-
-- Projeto sobe pelo GitHub no Replit
-- Continua usando Supabase como fonte única de verdade
-- Nenhum banco local do Replit é criado
-- Auth continua Supabase Auth
-- Evolution API continua usando configuração por tenant salva no Supabase
+- Banco de dados: Supabase exclusivamente
+- Secrets: sempre solicitar ao usuário, nunca criar fallback
+- Variáveis obrigatórias: SUPABASE_URL, SUPABASE_DB_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY, SUPABASE_JWT_SECRET
