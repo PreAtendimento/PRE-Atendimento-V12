@@ -47,12 +47,17 @@ Ao importar do GitHub para o Replit, **os secrets não existem ainda**.
 **Regra:** Assumir que o usuário irá fornecer os secrets.  
 **Nunca** inventar valores, criar fallbacks ou usar variáveis do Replit no lugar.
 
-### Solicitar ao usuário se ausentes — nesta ordem:
+### Variáveis normais (não secret) — configurar via setEnvVar se ausentes:
+
+| Variável | Valor padrão / onde encontrar |
+|----------|-------------------------------|
+| `SUPABASE_URL` | `https://yikemdxcswfvmwdvykiw.supabase.co` (já pré-configurada) |
+| `SUPABASE_DB_URL` | Project Settings → Database → Connection string → URI Pooler (porta 6543) |
+
+### Secrets obrigatórios — solicitar ao usuário se ausentes:
 
 | Secret | Onde encontrar no Supabase |
 |--------|---------------------------|
-| `SUPABASE_URL` | Project Settings → API → Project URL |
-| `SUPABASE_DB_URL` | Project Settings → Database → Connection string → Pooler URI (porta 6543) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API → service_role |
 | `SUPABASE_ANON_KEY` | Project Settings → API → anon public |
 | `SUPABASE_JWT_SECRET` | Project Settings → API → JWT Settings → JWT Secret |
