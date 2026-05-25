@@ -1,3 +1,4 @@
+import '../load-env.js';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -32,7 +33,7 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const PORT       = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || 'pre-atendimento-default-secret';
+const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET || 'pre-atendimento-default-secret';
 
 /* ── JWT payload ─────────────────────────────────────────────────────── */
 interface JwtPayload {
@@ -236,10 +237,15 @@ app.get('/api/admin/embed-token', requireAuth, async (req, res) => {
 });
 
 app.get('/api/config', (_req, res) => {
-  const dbConfigured = !!process.env.DATABASE_URL;
+  const supabaseUrl     = process.env.SUPABASE_URL || '';
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+  const jwtConfigured   = true;
+  const dbConfigured    = !!process.env.DATABASE_URL;
   const missing: string[] = [];
-  if (!dbConfigured) missing.push('DATABASE_URL');
-  res.json({ jwtConfigured: true, dbConfigured, ready: missing.length === 0, missing });
+  if (!supabaseUrl)     missing.push('SUPABASE_URL');
+  if (!supabaseAnonKey) missing.push('SUPABASE_ANON_KEY');
+  if (!dbConfigured)    missing.push('SUPABASE_DB_URL');
+  res.json({ supabaseUrl, supabaseAnonKey, jwtConfigured, dbConfigured, ready: missing.length === 0, missing });
 });
 
 app.get('/health', (_req, res) => {
@@ -1966,7 +1972,8 @@ async function start() {
 
   app.listen(PORT, () => {
     console.log(`🚀 Servidor rodando na porta ${PORT}`);
-    console.log(`📦 PostgreSQL: ${process.env.DATABASE_URL ? '✅ configurado' : '⚠️  não configurado'}`);
+    console.log(`📦 Supabase: ${process.env.SUPABASE_URL ? '✅ configurado' : '⚠️  não configurado'}`);
+    console.log(`📦 DB (SUPABASE_DB_URL): ${process.env.DATABASE_URL ? '✅ configurado' : '⚠️  não configurado'}`);
   });
 }
 

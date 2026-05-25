@@ -77,6 +77,33 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
     `,
   },
   {
+    name: '005_enable_rls',
+    sql: `
+      ALTER TABLE public.instances ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.instance_logs ENABLE ROW LEVEL SECURITY;
+
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_instances" ON public.instances
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "anon_select_instances" ON public.instances
+          FOR SELECT TO anon USING (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_logs" ON public.instance_logs
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "anon_select_logs" ON public.instance_logs
+          FOR SELECT TO anon USING (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `,
+  },
+  {
     name: '006_create_tenants_table',
     sql: `
       CREATE TABLE IF NOT EXISTS public.tenants (
@@ -88,6 +115,12 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_tenants_slug ON public.tenants (slug);
+
+      ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_tenants" ON public.tenants
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
       INSERT INTO public.tenants (name, slug)
       VALUES ('Default', 'default')
@@ -123,10 +156,58 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
     `,
   },
   {
+    name: '009_fix_rls_instance_isolation',
+    sql: `
+      DROP POLICY IF EXISTS "anon_select_instances" ON public.instances;
+      DROP POLICY IF EXISTS "anon_select_logs"      ON public.instance_logs;
+
+      DO $$ BEGIN
+        CREATE POLICY "owner_select_instances" ON public.instances
+          FOR SELECT TO authenticated
+          USING (created_by::text = auth.uid()::text);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "owner_insert_instances" ON public.instances
+          FOR INSERT TO authenticated
+          WITH CHECK (created_by::text = auth.uid()::text);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "owner_update_instances" ON public.instances
+          FOR UPDATE TO authenticated
+          USING (created_by::text = auth.uid()::text)
+          WITH CHECK (created_by::text = auth.uid()::text);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "owner_delete_instances" ON public.instances
+          FOR DELETE TO authenticated
+          USING (created_by::text = auth.uid()::text);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+      DO $$ BEGIN
+        CREATE POLICY "owner_select_logs" ON public.instance_logs
+          FOR SELECT TO authenticated
+          USING (
+            instance_id IN (
+              SELECT id FROM public.instances
+              WHERE created_by::text = auth.uid()::text
+            )
+          );
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+    `,
+  },
+  {
     name: '010_add_provider_to_instances',
     sql: `
       ALTER TABLE public.instances
         ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'evo-go';
+
+      UPDATE public.instances
+      SET provider = 'evolution-api'
+      WHERE provider = 'evo-go'
+        AND metadata->>'provider' = 'evolution-api';
 
       CREATE INDEX IF NOT EXISTS idx_instances_provider ON public.instances (provider);
     `,
@@ -165,6 +246,12 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       );
       CREATE INDEX IF NOT EXISTS idx_catalog_collections_tenant ON public.catalog_collections (tenant_id);
       CREATE INDEX IF NOT EXISTS idx_catalog_collections_created_by ON public.catalog_collections (created_by);
+
+      ALTER TABLE public.catalog_collections ENABLE ROW LEVEL SECURITY;
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_catalog_collections" ON public.catalog_collections
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `,
   },
   {
@@ -183,62 +270,37 @@ const SQL_MIGRATIONS: { name: string; sql: string }[] = [
       );
       CREATE INDEX IF NOT EXISTS idx_catalog_items_tenant ON public.catalog_items (tenant_id);
       CREATE INDEX IF NOT EXISTS idx_catalog_items_collection ON public.catalog_items (collection_id);
-    `,
-  },
-  {
-    name: '015_add_catalog_item_extra_cols',
-    sql: `
-      ALTER TABLE public.catalog_items
-        ADD COLUMN IF NOT EXISTS currency        TEXT DEFAULT 'BRL',
-        ADD COLUMN IF NOT EXISTS availability    TEXT DEFAULT 'in stock',
-        ADD COLUMN IF NOT EXISTS image_url       TEXT,
-        ADD COLUMN IF NOT EXISTS meta_product_id TEXT;
-    `,
-  },
-  {
-    name: '016_create_system_config',
-    sql: `
-      CREATE TABLE IF NOT EXISTS public.system_config (
-        key        TEXT PRIMARY KEY,
-        value      TEXT NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `,
-  },
-  {
-    name: '017_create_tenant_meta_config',
-    sql: `
-      CREATE TABLE IF NOT EXISTS public.tenant_meta_config (
-        id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        tenant_id         UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
-        user_id           UUID REFERENCES public.users(id)   ON DELETE CASCADE,
-        meta_access_token TEXT,
-        meta_business_id  TEXT,
-        meta_catalog_id   TEXT,
-        meta_waba_id      TEXT,
-        updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE (tenant_id, user_id)
-      );
+
+      ALTER TABLE public.catalog_items ENABLE ROW LEVEL SECURITY;
+      DO $$ BEGIN
+        CREATE POLICY "service_role_all_catalog_items" ON public.catalog_items
+          FOR ALL TO service_role USING (true) WITH CHECK (true);
+      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
     `,
   },
 ];
 
 export async function runMigrations(): Promise<void> {
+  if (process.env.RUN_MIGRATIONS !== 'true') {
+    console.log('ℹ️  RUN_MIGRATIONS não habilitado — pulando migrations.');
+    return;
+  }
+
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
-    console.error('❌ FATAL: DATABASE_URL is required for migrations.');
+    console.error('❌ FATAL: DATABASE_URL (SUPABASE_DB_URL) é obrigatória para rodar migrations. Encerrando aplicação.');
     process.exit(1);
   }
 
   const client = new pg.Client({
     connectionString,
-    ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: false },
   });
 
   try {
     await client.connect();
-    console.log('✅ Connected to PostgreSQL');
+    console.log('✅ Conectado ao Supabase via pooler');
 
     await client.query(SQL_MIGRATIONS[0].sql);
 
@@ -249,21 +311,21 @@ export async function runMigrations(): Promise<void> {
 
     for (const migration of SQL_MIGRATIONS) {
       if (applied.has(migration.name)) {
-        console.log(`⏭️  Already applied: ${migration.name}`);
+        console.log(`⏭️  Já aplicada: ${migration.name}`);
         continue;
       }
-      console.log(`🔄 Applying: ${migration.name}`);
+      console.log(`🔄 Aplicando: ${migration.name}`);
       await client.query(migration.sql);
       await client.query(
         'INSERT INTO public._migrations (name) VALUES ($1) ON CONFLICT DO NOTHING',
         [migration.name]
       );
-      console.log(`✅ Done: ${migration.name}`);
+      console.log(`✅ Concluída: ${migration.name}`);
     }
 
-    console.log('🎉 All migrations applied successfully.');
+    console.log('🎉 Todas as migrations aplicadas com sucesso.');
   } catch (err) {
-    console.error('❌ Migration error:', err);
+    console.error('❌ Erro nas migrations:', err);
     throw err;
   } finally {
     await client.end();

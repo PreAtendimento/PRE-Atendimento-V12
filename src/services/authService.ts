@@ -1,6 +1,6 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
-import { supabaseAdmin } from './supabase.js';
+import { supabaseAdmin, supabaseClient } from './supabase.js';
 
 interface UserRow {
   id: string;
@@ -17,7 +17,7 @@ interface UserRow {
 function getClient() {
   return new pg.Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: (process.env.DATABASE_URL || '').includes('localhost') ? false : { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: false },
   });
 }
 
@@ -134,7 +134,7 @@ export async function requestPasswordReset(
       [normalizedEmail],
     );
     if (!rows.length) {
-      console.log(`[auth] requestPasswordReset: e-mail não encontrado — resposta genérica`);
+      console.log(`[auth] requestPasswordReset: e-mail não encontrado em public.users — resposta genérica`);
       return { success: true };
     }
   } finally {
@@ -164,14 +164,14 @@ export async function requestPasswordReset(
       password: tmpPassword,
     });
     if (createErr) {
-      console.error(`[auth] requestPasswordReset: falha ao criar: ${createErr.message}`);
+      console.error(`[auth] requestPasswordReset: falha ao criar em auth.users: ${createErr.message}`);
       return { success: true };
     }
     const { error: retryErr } = await supabaseAdmin.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
     if (retryErr) {
       console.error(`[auth] requestPasswordReset: retry error: ${retryErr.message}`);
     } else {
-      console.log(`[auth] requestPasswordReset: e-mail enviado (retry) para "${normalizedEmail}"`);
+      console.log(`[auth] requestPasswordReset: e-mail enviado com sucesso (retry) para "${normalizedEmail}"`);
     }
   }
 
